@@ -11,8 +11,10 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:#F8FAFC;color:#111827;min-height:100vh;overscroll-behavior:none;}
-button,input,textarea,select{font-family:inherit;}
+button,input,textarea,select{font-family:inherit;cursor:pointer;}
 #app{min-height:100vh;}
+.spin{display:inline-block;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 #install-banner{display:none;position:fixed;bottom:0;left:0;right:0;background:#1F2937;color:#fff;padding:14px 16px;z-index:200;border-top:2px solid #2563EB;align-items:center;gap:12px;}
 #install-banner.show{display:flex;}
 #install-banner p{flex:1;font-size:13px;line-height:1.4;}
@@ -24,8 +26,6 @@ button,input,textarea,select{font-family:inherit;}
 #ios-hint p{font-size:13px;line-height:1.6;margin-bottom:10px;}
 #ios-hint strong{color:#60A5FA;}
 #ios-close{background:none;border:1px solid #4B5563;color:#9CA3AF;border-radius:8px;padding:7px 14px;font-size:12px;width:100%;}
-.spin{display:inline-block;animation:spin 1s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -40,18 +40,26 @@ button,input,textarea,select{font-family:inherit;}
   <button id="ios-close">Got it</button>
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 // ── PWA Install ────────────────────────────────────────────────────────────────
 let deferredPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!localStorage.getItem('pwa-dismissed'))document.getElementById('install-banner').classList.add('show');});
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!ls.get('pwa-dismissed'))document.getElementById('install-banner').classList.add('show');});
 function triggerInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;document.getElementById('install-banner').classList.remove('show');});}}
-function dismissInstall(){document.getElementById('install-banner').classList.remove('show');localStorage.setItem('pwa-dismissed','1');}
+function dismissInstall(){document.getElementById('install-banner').classList.remove('show');ls.set('pwa-dismissed','1');}
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
 const isStandalone=window.navigator.standalone;
-if(isIOS&&!isStandalone&&!localStorage.getItem('ios-hint-dismissed')){
-  setTimeout(()=>document.getElementById('ios-hint').classList.add('show'),2000);
-  document.getElementById('ios-close').onclick=()=>{document.getElementById('ios-hint').classList.remove('show');localStorage.setItem('ios-hint-dismissed','1');};
+if(isIOS&&!isStandalone&&!ls.get('ios-hint-dismissed')){
+  setTimeout(()=>document.getElementById('ios-hint').classList.add('show'),2500);
+  document.getElementById('ios-close').onclick=()=>{document.getElementById('ios-hint').classList.remove('show');ls.set('ios-hint-dismissed','1');};
 }
+
+// ── Storage ────────────────────────────────────────────────────────────────────
+const ls={
+  get(k){try{return localStorage.getItem(k);}catch{return null;}},
+  set(k,v){try{localStorage.setItem(k,v);}catch{}},
+  del(k){try{localStorage.removeItem(k);}catch{}},
+};
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CATEGORIES=["Service Calendar","Subcontractor","Large Project","Materials/Orders","Customer Follow-up","PM Check-in","Admin"];
@@ -63,12 +71,16 @@ const PRI_COLORS={High:{bg:"#FEE2E2",text:"#B91C1C"},Medium:{bg:"#FEF9C3",text:"
 const STATUS_COLORS={"Not Started":{bg:"#F1F5F9",text:"#475569"},"In Progress":{bg:"#DBEAFE",text:"#1D4ED8"},"Waiting":{bg:"#FEF9C3",text:"#A16207"},"Blocked":{bg:"#FEE2E2",text:"#B91C1C"},"Complete":{bg:"#DCFCE7",text:"#15803D"}};
 const HEALTH_COLORS={"On Track":{bg:"#DCFCE7",text:"#15803D",icon:"🟢"},"At Risk":{bg:"#FEF9C3",text:"#A16207",icon:"🟡"},"Delayed":{bg:"#FEE2E2",text:"#B91C1C",icon:"🔴"},"On Hold":{bg:"#F1F5F9",text:"#475569",icon:"⏸"},"Complete":{bg:"#DCFCE7",text:"#15803D",icon:"✅"}};
 const todayStr=new Date().toISOString().split('T')[0];
+const SCOPES='https://www.googleapis.com/auth/spreadsheets';
+const AUTOPUSH_DELAY=8000; // 8 seconds after last change
 
 const SAMPLE_TASKS=[
   {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: HVAC quote",job:"Thompson / HVA-2241",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false},
   {id:2,category:"Materials/Orders",description:"Confirm delivery date for Job #3847",job:"Brennan Project",priority:"High",dueDate:todayStr,status:"Not Started",notes:"Order placed 6/9 — supplier est. 6/13",done:false},
   {id:3,category:"Customer Follow-up",description:"Send booking confirmation to Garcia",job:"Garcia / PLB-1190",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"New booking entered in HCP this morning",done:false},
   {id:4,category:"PM Check-in",description:"Get status update from Marcus (Project A)",job:"Commercial Bldg A",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Project week 3 — should be on schedule",done:false},
+  {id:5,category:"Subcontractor",description:"Confirm crew availability for Friday",job:"Metro Sub Team",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Need 4 crew — confirm by EOD",done:false},
+  {id:6,category:"Large Project",description:"Review change order for Project Delta",job:"Delta / COM-0042",priority:"Low",dueDate:todayStr,status:"Waiting",notes:"Awaiting revised scope from PM",done:false},
 ];
 const SAMPLE_PROJECTS=[
   {id:1,name:"Commercial Bldg A",pm:"Marcus R.",jobNum:"COM-0041",startDate:"2026-05-28",targetEnd:"2026-07-11",pctComplete:65,health:"On Track",blockers:"",lastCheckin:todayStr},
@@ -78,214 +90,169 @@ const SAMPLE_PARKING=[
   {id:1,time:"9:14 AM",wasWorkingOn:"Writing booking confirmation for Garcia",interruption:"Phone call — supplier re: delayed order",nextStep:"Finish Garcia email then call supplier back",priority:"High",cleared:false},
 ];
 
-// ── Storage ────────────────────────────────────────────────────────────────────
-const ls={
-  get(k){try{return localStorage.getItem(k);}catch{return null;}},
-  set(k,v){try{localStorage.setItem(k,v);}catch{}},
-};
+// ── OAuth ──────────────────────────────────────────────────────────────────────
+let tokenClient=null;
+let accessToken=null;
+let tokenExpiry=0;
 
-// ── Google Sheets API ──────────────────────────────────────────────────────────
-// Sheet layout (columns, 1-indexed):
-// Daily Tasks:      A=#  B=Category  C=Description  D=Job  E=AssignedTo  F=Priority  G=DueDate  H=Status  I=Notes  J=Done
-// PM Status:        A=Name  B=PM  C=JobNum  D=Start  E=End  F=Pct  G=Health  H=auto  I=auto  J=Blockers  K=LastCheckin
-// Parking Lot rows: A=Time  B=WasWorkingOn  C=Interruption  D=NextStep  E=Priority  F=Cleared
+function getClientId(){return ls.get('tt_clientid')||'';}
+function getSheetId(){return ls.get('tt_sheetid')||'';}
+function isConfigured(){return getClientId().length>0&&getSheetId().length>0;}
+function isAuthenticated(){return accessToken&&Date.now()<tokenExpiry;}
 
-const SHEETS={
-  TASKS:   {name:"Daily Tasks",   dataRange:"A5:J200",  headerRow:4},
-  PM:      {name:"PM Status",     dataRange:"A7:K50",   headerRow:6},
-  PARKING: {name:"Parking Lot",   dataRange:"A8:F50",   headerRow:7},
-};
-
-async function sheetsGET(path){
-  const cfg=getConfig();
-  if(!cfg.apiKey||!cfg.sheetId) throw new Error('No credentials');
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/${path}&key=${cfg.apiKey}`;
-  const res=await fetch(url);
-  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets API error');}
-  return res.json();
+function initTokenClient(){
+  const clientId=getClientId();
+  if(!clientId||!window.google) return;
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:clientId,
+    scope:SCOPES,
+    callback:(resp)=>{
+      if(resp.error){
+        setState({syncStatus:'error',syncMsg:'Sign-in failed: '+resp.error});
+        return;
+      }
+      accessToken=resp.access_token;
+      tokenExpiry=Date.now()+(resp.expires_in-60)*1000;
+      ls.set('tt_authed','1');
+      setState({syncStatus:'syncing',syncMsg:'Signed in — syncing…'});
+      pushToSheets(state.tasks,state.projects,state.parking).then(()=>{
+        setState({syncStatus:'success',syncMsg:'Synced to Google Sheets ✓'});
+        setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
+      }).catch(e=>setState({syncStatus:'error',syncMsg:'Sync failed: '+e.message}));
+    },
+  });
 }
 
-async function sheetsPUT(range,values){
-  const cfg=getConfig();
-  if(!cfg.apiKey||!cfg.sheetId) throw new Error('No credentials');
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED&key=${cfg.apiKey}`;
-  const res=await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({range,majorDimension:'ROWS',values})});
-  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets write error');}
-  return res.json();
+async function ensureToken(){
+  if(isAuthenticated()) return;
+  return new Promise((resolve,reject)=>{
+    if(!tokenClient){initTokenClient();}
+    if(!tokenClient){reject(new Error('OAuth not configured — check your Client ID'));return;}
+    const origCallback=tokenClient.callback;
+    tokenClient.callback=(resp)=>{
+      origCallback(resp);
+      if(resp.error) reject(new Error(resp.error));
+      else resolve();
+    };
+    tokenClient.requestAccessToken({prompt:accessToken?'none':'consent'});
+  });
 }
 
-async function sheetsCLEAR(range){
-  const cfg=getConfig();
-  if(!cfg.apiKey||!cfg.sheetId) throw new Error('No credentials');
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}:clear?key=${cfg.apiKey}`;
-  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'}});
-  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets clear error');}
-  return res.json();
+// ── Sheets API ─────────────────────────────────────────────────────────────────
+async function sheetsReq(method,path,body){
+  await ensureToken();
+  const base=`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}`;
+  const res=await fetch(base+path,{
+    method,
+    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+    body:body?JSON.stringify(body):undefined,
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets error');}
+  return method==='POST'&&path.includes('clear')?{}:res.json();
 }
 
-// Convert app tasks → sheet rows
-function tasksToRows(tasks){
-  return tasks.map((t,i)=>[
-    i+1, t.category||'', t.description||'', t.job||'', 'You',
-    t.priority||'', t.dueDate?fmtDate(t.dueDate):'', t.status||'', t.notes||'', t.done?'✅':''
-  ]);
+function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
+function parseSheetDate(v){if(!v)return'';const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
+
+function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'']);}
+function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>({id:Date.now()+i,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete'}));}
+function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
+function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
+function parkingToRows(p){return p.map(p=>[p.time||'',p.wasWorkingOn||'',p.interruption||'',p.nextStep||'',p.priority||'Medium',p.cleared?'✅ Cleared':'⏳ Pending']);}
+function rowsToParking(rows){return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=>({id:Date.now()+i,time:r[0]||'',wasWorkingOn:r[1]||'',interruption:r[2]||'',nextStep:r[3]||'',priority:r[4]||'Medium',cleared:r[5]==='✅ Cleared'}));}
+
+async function pushToSheets(tasks,projects,parking){
+  await sheetsReq('POST',`/values/'Daily Tasks'!A5:J200:clear`);
+  if(tasks.length) await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(tasks)});
+  await sheetsReq('POST',`/values/'PM Status'!A7:K50:clear`);
+  if(projects.length) await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
+  await sheetsReq('POST',`/values/'Parking Lot'!A8:F50:clear`);
+  if(parking.length) await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
 }
 
-// Convert sheet rows → app tasks
-function rowsToTasks(rows){
-  return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>({
-    id: Date.now()+i,
-    category: r[1]||'Admin', description: r[2]||'', job: r[3]||'',
-    priority: r[5]||'Medium', dueDate: parseSheetDate(r[6]),
-    status: r[7]||'Not Started', notes: r[8]||'', done: r[9]==='✅'||r[7]==='Complete'
-  }));
-}
-
-function projectsToRows(projects){
-  return projects.map(p=>[
-    p.name||'', p.pm||'', p.jobNum||'', p.startDate?fmtDate(p.startDate):'',
-    p.targetEnd?fmtDate(p.targetEnd):'', (p.pctComplete||0)+'%',
-    p.health||'On Track', '', '', p.blockers||'', p.lastCheckin?fmtDate(p.lastCheckin):''
-  ]);
-}
-
-function rowsToProjects(rows){
-  return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({
-    id: Date.now()+i,
-    name:r[0]||'', pm:r[1]||'', jobNum:r[2]||'',
-    startDate:parseSheetDate(r[3]), targetEnd:parseSheetDate(r[4]),
-    pctComplete:parseInt((r[5]||'0').replace('%',''))||0,
-    health:r[6]||'On Track', blockers:r[9]||'', lastCheckin:parseSheetDate(r[10])||todayStr
-  }));
-}
-
-function parkingToRows(parking){
-  return parking.map(p=>[
-    p.time||'', p.wasWorkingOn||'', p.interruption||'',
-    p.nextStep||'', p.priority||'Medium', p.cleared?'✅ Cleared':'⏳ Pending'
-  ]);
-}
-
-function rowsToParking(rows){
-  return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=>({
-    id:Date.now()+i, time:r[0]||'', wasWorkingOn:r[1]||'',
-    interruption:r[2]||'', nextStep:r[3]||'',
-    priority:r[4]||'Medium', cleared:r[5]==='✅ Cleared'
-  }));
-}
-
-function parseSheetDate(val){
-  if(!val) return '';
-  // Handle MM/DD/YYYY
-  const m=val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if(m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-  // Handle YYYY-MM-DD passthrough
-  if(/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-  return '';
-}
-
-// Push all data to Google Sheets
-async function pushToSheets(tasks, projects, parking){
-  // Tasks
-  await sheetsCLEAR(`'Daily Tasks'!A5:J200`);
-  if(tasks.length) await sheetsPUT(`'Daily Tasks'!A5`,tasksToRows(tasks));
-  // Projects
-  await sheetsCLEAR(`'PM Status'!A7:K50`);
-  if(projects.length) await sheetsPUT(`'PM Status'!A7`,projectsToRows(projects));
-  // Parking
-  await sheetsCLEAR(`'Parking Lot'!A8:F50`);
-  if(parking.length) await sheetsPUT(`'Parking Lot'!A8`,parkingToRows(parking));
-}
-
-// Pull all data from Google Sheets
 async function pullFromSheets(){
-  const [tRes, pRes, kRes] = await Promise.all([
-    sheetsGET(`values/'Daily Tasks'!A5:J200?`),
-    sheetsGET(`values/'PM Status'!A7:K50?`),
-    sheetsGET(`values/'Parking Lot'!A8:F50?`),
+  const [tR,pR,kR]=await Promise.all([
+    sheetsReq('GET',`/values/'Daily Tasks'!A5:J200`),
+    sheetsReq('GET',`/values/'PM Status'!A7:K50`),
+    sheetsReq('GET',`/values/'Parking Lot'!A8:F50`),
   ]);
-  return {
-    tasks:    rowsToTasks(tRes.values||[]),
-    projects: rowsToProjects(pRes.values||[]),
-    parking:  rowsToParking(kRes.values||[]),
-  };
+  return{tasks:rowsToTasks(tR.values||[]),projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
 }
 
-// ── Config ─────────────────────────────────────────────────────────────────────
-function getConfig(){
-  return {
-    apiKey:  ls.get('tt_apikey')||'',
-    sheetId: ls.get('tt_sheetid')||'',
-  };
-}
-function saveConfig(apiKey, sheetId){
-  ls.set('tt_apikey',  apiKey.trim());
-  ls.set('tt_sheetid', sheetId.trim());
-}
-function hasConfig(){
-  const c=getConfig();
-  return c.apiKey.length>0 && c.sheetId.length>0;
+// ── Auto-push ──────────────────────────────────────────────────────────────────
+let autoPushTimer=null;
+function scheduleAutoPush(){
+  if(!isConfigured()||!ls.get('tt_authed')) return;
+  clearTimeout(autoPushTimer);
+  autoPushTimer=setTimeout(async()=>{
+    if(!isConfigured()) return;
+    setState({syncStatus:'syncing',syncMsg:'Auto-saving to Sheets…'});
+    try{
+      await pushToSheets(state.tasks,state.projects,state.parking);
+      setState({syncStatus:'success',syncMsg:'Auto-saved ✓'});
+      setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
+    }catch(e){
+      // Silent fail on auto-push — don't interrupt the user
+      setState({syncStatus:null,syncMsg:''});
+    }
+  },AUTOPUSH_DELAY);
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
 let state={
-  tab:'tasks', view:'board',
+  tab:'tasks',view:'board',
   tasks:    JSON.parse(ls.get('tt_tasks')||'null')||SAMPLE_TASKS,
   projects: JSON.parse(ls.get('tt_projects')||'null')||SAMPLE_PROJECTS,
   parking:  JSON.parse(ls.get('tt_parking')||'null')||SAMPLE_PARKING,
-  modal:null, filterCat:'All', filterStatus:'All', search:'',
-  syncStatus:null,   // null | 'syncing' | 'success' | 'error'
-  syncMsg:'',
-  saveTimer:null,
+  modal:null,filterCat:'All',filterStatus:'All',search:'',
+  syncStatus:null,syncMsg:'',
   showSettings:false,
+  saveTimer:null,
 };
 
 function localSave(){
   clearTimeout(state.saveTimer);
   state.saveTimer=setTimeout(()=>{
-    ls.set('tt_tasks',    JSON.stringify(state.tasks));
-    ls.set('tt_projects', JSON.stringify(state.projects));
-    ls.set('tt_parking',  JSON.stringify(state.parking));
-  },400);
+    ls.set('tt_tasks',JSON.stringify(state.tasks));
+    ls.set('tt_projects',JSON.stringify(state.projects));
+    ls.set('tt_parking',JSON.stringify(state.parking));
+  },300);
 }
 
 function setState(updates){
+  const dataChanged=updates.tasks||updates.projects||updates.parking;
   Object.assign(state,updates);
-  if(updates.tasks||updates.projects||updates.parking) localSave();
+  if(dataChanged){localSave();scheduleAutoPush();}
   render();
 }
 
-// ── Sync actions ───────────────────────────────────────────────────────────────
+// ── Manual sync ────────────────────────────────────────────────────────────────
 async function syncPush(){
-  if(!hasConfig()){setState({showSettings:true});return;}
+  if(!isConfigured()){setState({showSettings:true});return;}
+  clearTimeout(autoPushTimer);
   setState({syncStatus:'syncing',syncMsg:'Pushing to Google Sheets…'});
   try{
     await pushToSheets(state.tasks,state.projects,state.parking);
-    setState({syncStatus:'success',syncMsg:'Synced to Google Sheets ✓'});
+    setState({syncStatus:'success',syncMsg:'Pushed to Google Sheets ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-  }catch(e){
-    setState({syncStatus:'error',syncMsg:'Sync failed: '+e.message});
-  }
+  }catch(e){setState({syncStatus:'error',syncMsg:'Push failed: '+e.message});}
 }
 
 async function syncPull(){
-  if(!hasConfig()){setState({showSettings:true});return;}
+  if(!isConfigured()){setState({showSettings:true});return;}
   setState({syncStatus:'syncing',syncMsg:'Pulling from Google Sheets…'});
   try{
     const data=await pullFromSheets();
     if(!data.tasks.length&&!data.projects.length&&!data.parking.length){
-      setState({syncStatus:'error',syncMsg:'Sheet appears empty — push first to populate it.'});
+      setState({syncStatus:'error',syncMsg:'Sheet appears empty — push first.'});
       return;
     }
     setState({...data,syncStatus:'success',syncMsg:'Pulled from Google Sheets ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-  }catch(e){
-    setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});
-  }
+  }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
 function isOverdue(due,status){return due&&status!=='Complete'&&due<todayStr;}
 function daysLeft(d){if(!d)return null;return Math.round((new Date(d)-new Date(todayStr))/86400000);}
 function nowTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
@@ -307,99 +274,114 @@ function buildApp(){
 
 // ── Sync bar ───────────────────────────────────────────────────────────────────
 function buildSyncBar(){
-  const cfg=hasConfig();
+  const configured=isConfigured();
+  const authed=!!ls.get('tt_authed');
   const statusColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.syncStatus]||'#374151';
   const statusBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.syncStatus]||'transparent';
   const spinnerHTML=state.syncStatus==='syncing'?`<span class="spin">⟳</span> `:'';
-  return`
-<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-  <div style="flex:1;min-width:120px;">
-    ${state.syncStatus
-      ?`<span style="font-size:12px;font-weight:600;color:${statusColor};background:${statusBg};padding:3px 9px;border-radius:99px;">${spinnerHTML}${state.syncMsg}</span>`
-      :`<span style="font-size:12px;color:#9CA3AF;">${cfg?'Connected to Google Sheets':'⚠ Google Sheets not configured'}</span>`
-    }
-  </div>
-  <div style="display:flex;gap:6px;">
-    <button onclick="syncPush()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;" ${state.syncStatus==='syncing'?'disabled':''}>↑ Push</button>
-    <button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;" ${state.syncStatus==='syncing'?'disabled':''}>↓ Pull</button>
-    <button onclick="setState({showSettings:true})" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 11px;font-size:13px;">⚙</button>
-  </div>
-</div>`;
+  let statusLabel='';
+  if(state.syncStatus) statusLabel=`<span style="font-size:12px;font-weight:600;color:${statusColor};background:${statusBg};padding:3px 9px;border-radius:99px;">${spinnerHTML}${state.syncMsg}</span>`;
+  else if(!configured) statusLabel=`<span style="font-size:12px;color:#9CA3AF;">⚠ Not configured</span>`;
+  else if(!authed) statusLabel=`<span style="font-size:12px;color:#A16207;">Sign in to enable sync</span>`;
+  else statusLabel=`<span style="font-size:12px;color:#15803D;">✓ Google Sheets connected · auto-saves on changes</span>`;
+  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div style="flex:1;min-width:100px;">${statusLabel}</div><div style="display:flex;gap:6px;"><button onclick="syncPush()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Push</button><button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button><button onclick="setState({showSettings:true})" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 11px;font-size:13px;">⚙</button></div></div>`;
 }
 
 // ── Settings page ──────────────────────────────────────────────────────────────
 function buildSettingsPage(){
-  const cfg=getConfig();
-  const connected=hasConfig();
+  const configured=isConfigured();
+  const authed=!!ls.get('tt_authed');
+  const connStatus=!configured?{color:'#A16207',bg:'#FEF9C3',icon:'⚠',label:'Not configured',sub:'Enter your credentials below to enable sync.'}:authed?{color:'#15803D',bg:'#DCFCE7',icon:'✓',label:'Connected & authenticated',sub:'Auto-push is active. Changes sync automatically.'}:{color:'#2563EB',bg:'#DBEAFE',icon:'→',label:'Credentials saved — sign in to activate',sub:'Tap "Sign in with Google" below to authorize.'};
   return`
 <div style="background:#1F2937;padding:14px 16px;position:sticky;top:0;z-index:50;">
   <div style="max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px;">
-    <button onclick="setState({showSettings:false})" style="background:none;border:none;color:#9CA3AF;font-size:22px;line-height:1;padding:0 4px;">←</button>
+    <button onclick="setState({showSettings:false})" style="background:none;border:none;color:#9CA3AF;font-size:22px;line-height:1;padding:0 4px 2px;">←</button>
     <span style="font-size:16px;font-weight:700;color:#fff;">Settings</span>
   </div>
 </div>
 <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:16px;">
-    <div style="padding:14px 16px;border-bottom:1px solid #F3F4F6;background:${connected?'#DCFCE7':'#FEF9C3'};">
-      <div style="font-size:14px;font-weight:700;color:${connected?'#15803D':'#A16207'};">${connected?'✓ Google Sheets connected':'⚠ Google Sheets not configured'}</div>
-      <div style="font-size:12px;color:${connected?'#166534':'#92400E'};margin-top:2px;">${connected?'Your data syncs with your spreadsheet.':'Enter your credentials below to enable sync.'}</div>
-    </div>
-    <div style="padding:16px;">
-      <form onsubmit="saveSettings(event)">
-        <div style="margin-bottom:14px;">
-          <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Spreadsheet ID</label>
-          <input id="cfg-sheetid" type="text" value="${cfg.sheetId}" placeholder="Paste your Spreadsheet ID here" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-          <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Found in your Google Sheet URL: …/spreadsheets/d/<strong>THIS_PART</strong>/edit</div>
-        </div>
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">API Key</label>
-          <input id="cfg-apikey" type="password" value="${cfg.apiKey}" placeholder="Paste your Google Sheets API key" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-          <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Stored only on this device — never transmitted except to Google's API.</div>
-        </div>
-        <button type="submit" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save & Test Connection</button>
-      </form>
-      ${connected?`<button onclick="clearConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;margin-top:10px;">Remove credentials</button>`:''}
-    </div>
+
+  <!-- Status card -->
+  <div style="background:${connStatus.bg};border:1px solid ${connStatus.color}30;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:700;color:${connStatus.color};">${connStatus.icon} ${connStatus.label}</div>
+    <div style="font-size:12px;color:${connStatus.color};opacity:0.85;margin-top:3px;">${connStatus.sub}</div>
   </div>
 
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:16px;">
+  <!-- Credentials form -->
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Credentials</div>
+    <form onsubmit="saveSettings(event)">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">OAuth Client ID</label>
+        <input id="cfg-clientid" type="password" value="${getClientId()}" placeholder="Paste your OAuth Client ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Google Cloud Console → Credentials → OAuth 2.0 Client ID</div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Spreadsheet ID</label>
+        <input id="cfg-sheetid" type="password" value="${getSheetId()}" placeholder="Paste your Google Sheet ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From your Sheet URL: …/spreadsheets/d/<strong>THIS_PART</strong>/edit</div>
+      </div>
+      <button type="submit" style="width:100%;background:#1F2937;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save Credentials</button>
+    </form>
+  </div>
+
+  <!-- Sign in / out -->
+  ${configured?`
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Google Account</div>
+    <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Authorizes the app to read and write your Google Sheet. You'll be prompted to sign in with your Google account.</div>
+    ${authed
+      ?`<button onclick="signOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out of Google</button>`
+      :`<button onclick="signIn()" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Sign in with Google →</button>`
+    }
+  </div>`:''}
+
+  <!-- Auto-push info -->
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How sync works</div>
-    <div style="font-size:13px;color:#374151;line-height:1.7;">
-      <div style="margin-bottom:6px;"><strong>↑ Push</strong> — Sends everything from the app to your Google Sheet. Use this after a day of updates to keep the sheet current.</div>
-      <div style="margin-bottom:6px;"><strong>↓ Pull</strong> — Loads data from your Google Sheet into the app. Use this if you've edited the sheet directly and want the app to reflect those changes.</div>
-      <div style="color:#9CA3AF;font-size:12px;margin-top:8px;">Last-write wins — whichever direction you sync last becomes the current version. Push and Pull don't merge; they replace.</div>
+    <div style="font-size:13px;color:#374151;line-height:1.75;">
+      <div style="margin-bottom:6px;"><strong>🔄 Auto-push</strong> — After you make any change, the app waits 8 seconds then automatically syncs to your Google Sheet. You don't have to do anything.</div>
+      <div style="margin-bottom:6px;"><strong>↑ Push</strong> — Manually send everything to Google Sheets immediately.</div>
+      <div style="margin-bottom:6px;"><strong>↓ Pull</strong> — Load data from Google Sheets into the app. Use this if you've edited the sheet directly.</div>
+      <div style="font-size:12px;color:#9CA3AF;margin-top:6px;">Push and Pull replace — they don't merge. Last sync wins.</div>
     </div>
   </div>
 
-  <div style="background:#FEF9C3;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px;">
-    <div style="font-size:13px;font-weight:700;color:#A16207;margin-bottom:4px;">⚠ Make sure your sheet is shared</div>
-    <div style="font-size:12px;color:#92400E;line-height:1.6;">Your Google Sheet must be set to <strong>"Anyone with the link → Viewer"</strong> for the API key to work. Open the sheet → Share → change General access.</div>
-  </div>
+  ${configured?`<button onclick="clearConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove all credentials from this device</button>`:''}
 </div>`;
 }
 
-window.saveSettings=async function(e){
+window.saveSettings=function(e){
   e.preventDefault();
-  const apiKey=document.getElementById('cfg-apikey').value.trim();
+  const clientId=document.getElementById('cfg-clientid').value.trim();
   const sheetId=document.getElementById('cfg-sheetid').value.trim();
-  if(!apiKey||!sheetId){alert('Please enter both fields.');return;}
-  saveConfig(apiKey,sheetId);
-  // Test connection
-  setState({syncStatus:'syncing',syncMsg:'Testing connection…',showSettings:false});
-  try{
-    await sheetsGET(`values/'Daily Tasks'!A4:J4?`);
-    setState({syncStatus:'success',syncMsg:'Connected successfully ✓'});
-    setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-  }catch(ex){
-    setState({syncStatus:'error',syncMsg:'Connection failed: '+ex.message});
-  }
+  if(!clientId||!sheetId){alert('Please fill in both fields.');return;}
+  ls.set('tt_clientid',clientId);
+  ls.set('tt_sheetid',sheetId);
+  tokenClient=null; // reset so it reinitialises with new client ID
+  setState({showSettings:true,syncStatus:'success',syncMsg:'Credentials saved ✓'});
+  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
+  initTokenClient();
+};
+
+window.signIn=function(){
+  initTokenClient();
+  if(!tokenClient){alert('Please save your Client ID first.');return;}
+  tokenClient.requestAccessToken({prompt:'consent'});
+};
+
+window.signOut=function(){
+  if(accessToken) google.accounts.oauth2.revoke(accessToken,()=>{});
+  accessToken=null; tokenExpiry=0;
+  ls.del('tt_authed');
+  setState({showSettings:true,syncStatus:null,syncMsg:''});
 };
 
 window.clearConfig=function(){
-  if(confirm('Remove saved credentials from this device?')){
-    ls.set('tt_apikey','');ls.set('tt_sheetid','');
-    setState({showSettings:true});
-  }
+  if(!confirm('Remove all credentials from this device?')) return;
+  window.signOut();
+  ls.del('tt_clientid'); ls.del('tt_sheetid');
+  setState({showSettings:true});
 };
 
 // ── Header ─────────────────────────────────────────────────────────────────────
@@ -416,7 +398,7 @@ function buildTasksTab(counts){
   const catGroups=CATEGORIES.map(cat=>({cat,tasks:filtered.filter(t=>t.category===cat)})).filter(g=>g.tasks.length>0);
   const boardHTML=catGroups.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No tasks match.</div>`:catGroups.map(({cat,tasks:ct})=>{const cc=CAT_COLORS[cat]||{bg:'#F1F5F9',text:'#374151',dot:'#94A3B8'};return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="background:${cc.bg};padding:9px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${cc.dot}25;"><div style="display:flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:${cc.dot};display:inline-block;"></span><span style="font-size:13px;font-weight:700;color:${cc.text};">${cat}</span></div><span style="font-size:11px;font-weight:700;color:${cc.text};background:${cc.dot}25;border-radius:99px;padding:2px 8px;">${ct.filter(t=>!t.done).length} open</span></div>${ct.map((t,i)=>taskRow(t,i===ct.length-1,false)).join('')}</div>`;}).join('');
   const listHTML=filtered.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;">No tasks match.</div>`:`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">${filtered.map((t,i)=>taskRow(t,i===filtered.length-1,true)).join('')}</div>`;
-  return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input id="search-input" value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
+  return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
 }
 
 function taskRow(task,last,showCat){const over=isOverdue(task.dueDate,task.status);const cc=CAT_COLORS[task.category]||{bg:'#F1F5F9',text:'#374151'};const pc=PRI_COLORS[task.priority]||PRI_COLORS.Medium;const sc=STATUS_COLORS[task.status]||STATUS_COLORS['Not Started'];return`<div style="padding:11px 12px;border-bottom:${last?'none':'1px solid #F3F4F6'};display:flex;gap:10px;align-items:flex-start;background:${task.done?'#FAFAFA':over?'#FFF5F5':'#fff'};opacity:${task.done?'0.6':'1'};"><button onclick="toggleTask(${task.id})" style="width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-top:1px;border:${task.done?'none':'2px solid #D1D5DB'};background:${task.done?'#16A34A':'transparent'};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">${task.done?'✓':''}</button><div style="flex:1;min-width:0;"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:3px;"><span style="font-size:14px;font-weight:${task.done?400:600};color:${task.done?'#9CA3AF':'#111827'};text-decoration:${task.done?'line-through':'none'};word-break:break-word;">${task.description}</span>${over&&!task.done?`<span style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:99px;padding:1px 7px;">Overdue</span>`:''}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${showCat?badge(task.category,{bg:cc.bg,text:cc.text}):''}${badge(task.priority,pc)}${badge(task.status,sc)}${task.job?`<span style="font-size:11px;color:#6B7280;">· ${task.job}</span>`:''}${task.dueDate?`<span style="font-size:11px;color:${over?'#DC2626':'#6B7280'};">· ${fmtDate(task.dueDate)}</span>`:''}</div>${task.notes?`<div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5;">${task.notes}</div>`:''}</div><div style="display:flex;gap:3px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(task).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 8px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteTask(${task.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div>`;}
@@ -433,18 +415,15 @@ function buildParkingTab(openItems){
 function buildPMTab(){
   const hCounts=PM_HEALTH.map(h=>({h,c:state.projects.filter(p=>p.health===h).length})).filter(x=>x.c>0);
   const summaryCards=hCounts.map(({h,c})=>{const hc=HEALTH_COLORS[h];return`<div style="background:${hc.bg};border:1px solid ${hc.text}30;border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">${hc.icon}</span><div><div style="font-size:20px;font-weight:800;color:${hc.text};">${c}</div><div style="font-size:11px;color:${hc.text};font-weight:600;">${h}</div></div></div>`;}).join('');
-  const projectCards=state.projects.map(proj=>{const hc=HEALTH_COLORS[proj.health]||HEALTH_COLORS['On Track'];const linked=state.tasks.filter(t=>t.job&&t.job.toLowerCase().includes(proj.name.toLowerCase().split(' ')[0]));const latest=linked.find(t=>!t.done)||linked[0];const dl=daysLeft(proj.targetEnd);const dlText=dl===null?'':(dl<0?`${Math.abs(dl)}d overdue`:`${dl}d left`);const dlColor=dl===null?'':(dl<0?'#DC2626':dl<7?'#A16207':'#15803D');return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="padding:11px 13px;background:${hc.bg};border-bottom:2px solid ${hc.text}25;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:15px;">${hc.icon}</span><span style="font-size:15px;font-weight:800;color:#111827;">${proj.name}</span><span style="font-size:12px;color:#6B7280;">${proj.jobNum}</span></div><div style="font-size:12px;color:#6B7280;">PM: <strong style="color:#374151;">${proj.pm}</strong> · ${fmtDate(proj.startDate)} → ${fmtDate(proj.targetEnd)} ${dlText?`<strong style="color:${dlColor};">(${dlText})</strong>`:''}</div></div><div style="display:flex;gap:4px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(proj).replace(/"/g,'&quot;')},'pm')" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 9px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteProject(${proj.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div><div style="padding:12px 13px;"><div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Progress</div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:8px;background:#E5E7EB;border-radius:99px;overflow:hidden;"><div style="width:${proj.pctComplete}%;height:100%;background:${proj.pctComplete>=80?'#16A34A':proj.pctComplete>=50?'#2563EB':'#F97316'};border-radius:99px;"></div></div><span style="font-size:13px;font-weight:700;color:#374151;min-width:34px;">${proj.pctComplete}%</span></div>${proj.blockers?`<div style="margin-top:7px;font-size:12px;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:5px 9px;">⚠ ${proj.blockers}</div>`:''}</div><div><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Linked Tasks <span style="background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:1px 6px;font-size:10px;">auto</span></div>${latest?`<div style="font-size:13px;color:#374151;font-weight:600;margin-bottom:3px;">${latest.description}</div><div style="display:flex;gap:4px;flex-wrap:wrap;">${badge(latest.status,STATUS_COLORS[latest.status]||STATUS_COLORS['Not Started'])}${badge(latest.priority,PRI_COLORS[latest.priority]||PRI_COLORS.Medium)}</div>${linked.length>1?`<div style="font-size:11px;color:#9CA3AF;margin-top:3px;">+${linked.length-1} more linked</div>`:''}`:`<div style="font-size:12px;color:#9CA3AF;font-style:italic;">No tasks linked yet.</div>`}</div></div><div style="padding:5px 13px 9px;border-top:1px solid #F3F4F6;"><span style="font-size:11px;color:#9CA3AF;">Last check-in: ${fmtDate(proj.lastCheckin)||'—'}</span></div></div>`;}).join('');
+  const projectCards=state.projects.map(proj=>{const hc=HEALTH_COLORS[proj.health]||HEALTH_COLORS['On Track'];const linked=state.tasks.filter(t=>t.job&&t.job.toLowerCase().includes(proj.name.toLowerCase().split(' ')[0]));const latest=linked.find(t=>!t.done)||linked[0];const dl=daysLeft(proj.targetEnd);const dlText=dl===null?'':(dl<0?`${Math.abs(dl)}d overdue`:`${dl}d left`);const dlColor=dl===null?'':(dl<0?'#DC2626':dl<7?'#A16207':'#15803D');return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="padding:11px 13px;background:${hc.bg};border-bottom:2px solid ${hc.text}25;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:15px;">${hc.icon}</span><span style="font-size:15px;font-weight:800;color:#111827;">${proj.name}</span><span style="font-size:12px;color:#6B7280;">${proj.jobNum}</span></div><div style="font-size:12px;color:#6B7280;">PM: <strong style="color:#374151;">${proj.pm}</strong> · ${fmtDate(proj.startDate)} → ${fmtDate(proj.targetEnd)} ${dlText?`<strong style="color:${dlColor};">(${dlText})</strong>`:''}</div></div><div style="display:flex;gap:4px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(proj).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 9px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteProject(${proj.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div><div style="padding:12px 13px;"><div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Progress</div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:8px;background:#E5E7EB;border-radius:99px;overflow:hidden;"><div style="width:${proj.pctComplete}%;height:100%;background:${proj.pctComplete>=80?'#16A34A':proj.pctComplete>=50?'#2563EB':'#F97316'};border-radius:99px;"></div></div><span style="font-size:13px;font-weight:700;color:#374151;min-width:34px;">${proj.pctComplete}%</span></div>${proj.blockers?`<div style="margin-top:7px;font-size:12px;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:5px 9px;">⚠ ${proj.blockers}</div>`:''}</div><div><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Linked Tasks <span style="background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:1px 6px;font-size:10px;">auto</span></div>${latest?`<div style="font-size:13px;color:#374151;font-weight:600;margin-bottom:3px;">${latest.description}</div><div style="display:flex;gap:4px;flex-wrap:wrap;">${badge(latest.status,STATUS_COLORS[latest.status]||STATUS_COLORS['Not Started'])}${badge(latest.priority,PRI_COLORS[latest.priority]||PRI_COLORS.Medium)}</div>${linked.length>1?`<div style="font-size:11px;color:#9CA3AF;margin-top:3px;">+${linked.length-1} more linked</div>`:''}`:`<div style="font-size:12px;color:#9CA3AF;font-style:italic;">No tasks linked yet.</div>`}</div></div><div style="padding:5px 13px 9px;border-top:1px solid #F3F4F6;"><span style="font-size:11px;color:#9CA3AF;">Last check-in: ${fmtDate(proj.lastCheckin)||'—'}</span></div></div>`;}).join('');
   return`${summaryCards?`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${summaryCards}</div>`:''} ${state.projects.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No projects yet.</div>`:projectCards}`;
 }
 
 // ── Modals ─────────────────────────────────────────────────────────────────────
 function buildModal(){const m=state.modal;if(m==='addTask'||(m&&m.category))return buildTaskModal(m==='addTask'?null:m);if(m==='addPark')return buildParkModal();if(m==='addProject'||(m&&m.health))return buildPMModal(m==='addProject'?null:m);return'';}
-
-function buildTaskModal(task){const t=task||{category:'Service Calendar',description:'',job:'',priority:'Medium',dueDate:todayStr,status:'Not Started',notes:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${task?'Edit Task':'Add Task'}</h3><form id="task-form" onsubmit="submitTaskForm(event,${task?task.id:'null'})">${fi('Task Description *','description',t.description,'textarea')}${fi('Job / Customer','job',t.job)}${fi('Notes','notes',t.notes,'textarea')}<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Category</label>${sel('category',CATEGORIES,t.category)}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Priority</label>${sel('priority',PRIORITIES,t.priority)}</div><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Status</label>${sel('status',STATUSES,t.status)}</div></div>${fi('Due Date','dueDate',t.dueDate,'date')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${task?'Save':'Add Task'}</button></div></form>`);}
-
-function buildParkModal(){return modal(`<h3 style="margin:0 0 4px;font-size:15px;font-weight:700;">🅿 Park an Interruption</h3><p style="font-size:12px;color:#6B7280;margin-bottom:16px;">30 seconds max — just enough to find your place again.</p><form id="park-form" onsubmit="submitParkForm(event)">${fi('I was working on…','wasWorkingOn','','textarea')}${fi('Interruption was…','interruption','','textarea')}${fi('Next step when I return','nextStep','','textarea')}<div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Priority</label><div style="display:flex;gap:8px;">${PRIORITIES.map(p=>`<button type="button" onclick="setParkPri('${p}')" id="pri-${p}" style="flex:1;padding:7px;border-radius:8px;border:2px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:600;">${p}</button>`).join('')}</div></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#F97316;color:#fff;font-size:13px;font-weight:700;">Park It</button></div></form>`);}
-
-function buildPMModal(proj){const p=proj||{name:'',pm:'',jobNum:'',startDate:todayStr,targetEnd:'',pctComplete:0,health:'On Track',blockers:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${proj?'Update Project':'Add Project'}</h3><form id="pm-form" onsubmit="submitPMForm(event,${proj?proj.id:'null'})">${fi('Project Name *','name',p.name)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['PM Name:pm','Job #:jobNum'].map(x=>{const[l,k]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['Start Date:startDate:date','Target End:targetEnd:date'].map(x=>{const[l,k,t]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input type="${t}" name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">% Complete — <span id="pct-label">${p.pctComplete}</span>%</label><input type="range" name="pctComplete" min="0" max="100" value="${p.pctComplete}" oninput="document.getElementById('pct-label').textContent=this.value" style="width:100%;accent-color:#2563EB;"></div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Health</label>${sel('health',PM_HEALTH,p.health)}</div>${fi('Blockers / Notes','blockers',p.blockers||'','textarea')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${proj?'Save':'Add'}</button></div></form>`);}
+function buildTaskModal(task){const t=task||{category:'Service Calendar',description:'',job:'',priority:'Medium',dueDate:todayStr,status:'Not Started',notes:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${task?'Edit Task':'Add Task'}</h3><form onsubmit="submitTaskForm(event,${task?task.id:'null'})">${fi('Task Description *','description',t.description,'textarea')}${fi('Job / Customer','job',t.job)}${fi('Notes','notes',t.notes,'textarea')}<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Category</label>${sel('category',CATEGORIES,t.category)}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Priority</label>${sel('priority',PRIORITIES,t.priority)}</div><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Status</label>${sel('status',STATUSES,t.status)}</div></div>${fi('Due Date','dueDate',t.dueDate,'date')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${task?'Save':'Add Task'}</button></div></form>`);}
+function buildParkModal(){return modal(`<h3 style="margin:0 0 4px;font-size:15px;font-weight:700;">🅿 Park an Interruption</h3><p style="font-size:12px;color:#6B7280;margin-bottom:16px;">30 seconds max — just enough to find your place again.</p><form onsubmit="submitParkForm(event)">${fi('I was working on…','wasWorkingOn','','textarea')}${fi('Interruption was…','interruption','','textarea')}${fi('Next step when I return','nextStep','','textarea')}<div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Priority</label><div style="display:flex;gap:8px;">${PRIORITIES.map(p=>`<button type="button" onclick="setParkPri('${p}')" id="pri-${p}" style="flex:1;padding:7px;border-radius:8px;border:2px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:600;">${p}</button>`).join('')}</div></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#F97316;color:#fff;font-size:13px;font-weight:700;">Park It</button></div></form>`);}
+function buildPMModal(proj){const p=proj||{name:'',pm:'',jobNum:'',startDate:todayStr,targetEnd:'',pctComplete:0,health:'On Track',blockers:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${proj?'Update Project':'Add Project'}</h3><form onsubmit="submitPMForm(event,${proj?proj.id:'null'})">${fi('Project Name *','name',p.name)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['PM Name:pm','Job #:jobNum'].map(x=>{const[l,k]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['Start Date:startDate:date','Target End:targetEnd:date'].map(x=>{const[l,k,t]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input type="${t}" name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">% Complete — <span id="pct-label">${p.pctComplete}</span>%</label><input type="range" name="pctComplete" min="0" max="100" value="${p.pctComplete}" oninput="document.getElementById('pct-label').textContent=this.value" style="width:100%;accent-color:#2563EB;"></div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Health</label>${sel('health',PM_HEALTH,p.health)}</div>${fi('Blockers / Notes','blockers',p.blockers||'','textarea')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${proj?'Save':'Add'}</button></div></form>`);}
 
 // ── Actions ────────────────────────────────────────────────────────────────────
 window.setTab=t=>setState({tab:t,modal:null});
@@ -453,29 +432,36 @@ window.setSearch=v=>setState({search:v});
 window.setFilter=(type,val)=>setState(type==='cat'?{filterCat:val}:{filterStatus:val});
 window.closeModal=()=>setState({modal:null});
 window.handleModalBg=e=>{if(e.target===e.currentTarget)setState({modal:null});};
-window.openModal=(data)=>{if(data==='addTask'||data==='addPark'||data==='addProject'){setState({modal:data});return;}let obj=typeof data==='string'?JSON.parse(data.replace(/&quot;/g,'"')):data;setState({modal:obj});};
+window.openModal=data=>{if(data==='addTask'||data==='addPark'||data==='addProject'){setState({modal:data});return;}let obj=typeof data==='string'?JSON.parse(data.replace(/&quot;/g,'"')):data;setState({modal:obj});};
 window.toggleTask=id=>setState({tasks:state.tasks.map(t=>t.id===id?{...t,done:!t.done,status:!t.done?'Complete':'In Progress'}:t)});
 window.deleteTask=id=>{if(confirm('Delete this task?'))setState({tasks:state.tasks.filter(t=>t.id!==id)});};
 window.clearParking=id=>setState({parking:state.parking.map(k=>k.id===id?{...k,cleared:true}:k)});
 window.deleteParking=id=>setState({parking:state.parking.filter(k=>k.id!==id)});
 window.deleteProject=id=>{if(confirm('Delete this project?'))setState({projects:state.projects.filter(p=>p.id!==id)});};
 window.setParkPri=pri=>{PRIORITIES.forEach(p=>{const btn=document.getElementById(`pri-${p}`);if(!btn)return;const pc=PRI_COLORS[p];btn.style.border=p===pri?`2px solid ${pc.text}`:'2px solid #E5E7EB';btn.style.background=p===pri?pc.bg:'#fff';btn.style.color=p===pri?pc.text:'#374151';});window._parkPri=pri;};
-window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done:fd.get('status')==='Complete'};if(!task.description.trim())return;const tasks=id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks];setState({tasks,modal:null});};
-window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);const item={id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false};setState({parking:[item,...state.parking],modal:null});};
-window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!proj.name.trim())return;const projects=id?state.projects.map(p=>p.id===id?proj:p):[proj,...state.projects];setState({projects,modal:null});};
+window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done:fd.get('status')==='Complete'};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
+window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});};
+window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!proj.name.trim())return;setState({projects:id?state.projects.map(p=>p.id===id?proj:p):[proj,...state.projects],modal:null});};
 window.syncPush=syncPush;
 window.syncPull=syncPull;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  if(isConfigured()) initTokenClient();
+});
 render();
 
 // ── Service Worker ─────────────────────────────────────────────────────────────
-if('serviceWorker' in navigator){const swCode=`const CACHE='tt-v2';self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{clients.claim();});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(CACHE).then(ca=>ca.put(e.request,c));return res;})));});`;const blob=new Blob([swCode],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
+if('serviceWorker' in navigator){
+  const sw=`const C='tt-v3';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
 </script>
 <script>
-const manifest={name:"Task Tracker",short_name:"Tasks",description:"Daily task tracker for scheduling & operations",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",orientation:"portrait-primary",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='40' y='56' width='112' height='14' rx='7' fill='%232563EB'/%3E%3Crect x='40' y='84' width='88' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='112' width='100' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='140' width='72' height='14' rx='7' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"},{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%231F2937'/%3E%3Crect x='100' y='148' width='312' height='38' rx='19' fill='%232563EB'/%3E%3Crect x='100' y='218' width='240' height='38' rx='19' fill='%234B5563'/%3E%3Crect x='100' y='288' width='280' height='38' rx='19' fill='%234B5563'/%3E%3Crect x='100' y='358' width='200' height='38' rx='19' fill='%234B5563'/%3E%3C/svg%3E",sizes:"512x512",type:"image/svg+xml"}]};
-const mblob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
-const link=document.createElement('link');link.rel='manifest';link.href=URL.createObjectURL(mblob);document.head.appendChild(link);
+const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='40' y='56' width='112' height='14' rx='7' fill='%232563EB'/%3E%3Crect x='40' y='84' width='88' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='112' width='100' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='140' width='72' height='14' rx='7' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
+const mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+const lnk=document.createElement('link');lnk.rel='manifest';lnk.href=URL.createObjectURL(mb);document.head.appendChild(lnk);
 </script>
 </body>
 </html>
