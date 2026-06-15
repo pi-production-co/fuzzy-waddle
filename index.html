@@ -39,7 +39,6 @@ button,input,textarea,select{font-family:inherit;cursor:pointer;}
   <p>To install on iPhone: tap the <strong>Share button ↑</strong> in Safari, then tap <strong>"Add to Home Screen"</strong>.</p>
   <button id="ios-close">Got it</button>
 </div>
-
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 // ── PWA Install ────────────────────────────────────────────────────────────────
@@ -70,17 +69,19 @@ const CAT_COLORS={"Service Calendar":{bg:"#DBEAFE",text:"#1D4ED8",dot:"#3B82F6"}
 const PRI_COLORS={High:{bg:"#FEE2E2",text:"#B91C1C"},Medium:{bg:"#FEF9C3",text:"#A16207"},Low:{bg:"#DCFCE7",text:"#15803D"}};
 const STATUS_COLORS={"Not Started":{bg:"#F1F5F9",text:"#475569"},"In Progress":{bg:"#DBEAFE",text:"#1D4ED8"},"Waiting":{bg:"#FEF9C3",text:"#A16207"},"Blocked":{bg:"#FEE2E2",text:"#B91C1C"},"Complete":{bg:"#DCFCE7",text:"#15803D"}};
 const HEALTH_COLORS={"On Track":{bg:"#DCFCE7",text:"#15803D",icon:"🟢"},"At Risk":{bg:"#FEF9C3",text:"#A16207",icon:"🟡"},"Delayed":{bg:"#FEE2E2",text:"#B91C1C",icon:"🔴"},"On Hold":{bg:"#F1F5F9",text:"#475569",icon:"⏸"},"Complete":{bg:"#DCFCE7",text:"#15803D",icon:"✅"}};
+const ASANA_PRI={High:"high",Medium:"medium",Low:"low"};
+const ASANA_API="https://app.asana.com/api/1.0";
 const todayStr=new Date().toISOString().split('T')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets';
-const AUTOPUSH_DELAY=8000; // 8 seconds after last change
+const AUTOPUSH_DELAY=8000;
 
 const SAMPLE_TASKS=[
-  {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: HVAC quote",job:"Thompson / HVA-2241",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false},
-  {id:2,category:"Materials/Orders",description:"Confirm delivery date for Job #3847",job:"Brennan Project",priority:"High",dueDate:todayStr,status:"Not Started",notes:"Order placed 6/9 — supplier est. 6/13",done:false},
-  {id:3,category:"Customer Follow-up",description:"Send booking confirmation to Garcia",job:"Garcia / PLB-1190",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"New booking entered in HCP this morning",done:false},
-  {id:4,category:"PM Check-in",description:"Get status update from Marcus (Project A)",job:"Commercial Bldg A",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Project week 3 — should be on schedule",done:false},
-  {id:5,category:"Subcontractor",description:"Confirm crew availability for Friday",job:"Metro Sub Team",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Need 4 crew — confirm by EOD",done:false},
-  {id:6,category:"Large Project",description:"Review change order for Project Delta",job:"Delta / COM-0042",priority:"Low",dueDate:todayStr,status:"Waiting",notes:"Awaiting revised scope from PM",done:false},
+  {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: HVAC quote",job:"Thompson / HVA-2241",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false,asanaGid:null},
+  {id:2,category:"Materials/Orders",description:"Confirm delivery date for Job #3847",job:"Brennan Project",priority:"High",dueDate:todayStr,status:"Not Started",notes:"Order placed 6/9 — supplier est. 6/13",done:false,asanaGid:null},
+  {id:3,category:"Customer Follow-up",description:"Send booking confirmation to Garcia",job:"Garcia / PLB-1190",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"New booking entered in HCP this morning",done:false,asanaGid:null},
+  {id:4,category:"PM Check-in",description:"Get status update from Marcus (Project A)",job:"Commercial Bldg A",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Project week 3 — should be on schedule",done:false,asanaGid:null},
+  {id:5,category:"Subcontractor",description:"Confirm crew availability for Friday",job:"Metro Sub Team",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Need 4 crew — confirm by EOD",done:false,asanaGid:null},
+  {id:6,category:"Large Project",description:"Review change order for Project Delta",job:"Delta / COM-0042",priority:"Low",dueDate:todayStr,status:"Waiting",notes:"Awaiting revised scope from PM",done:false,asanaGid:null},
 ];
 const SAMPLE_PROJECTS=[
   {id:1,name:"Commercial Bldg A",pm:"Marcus R.",jobNum:"COM-0041",startDate:"2026-05-28",targetEnd:"2026-07-11",pctComplete:65,health:"On Track",blockers:"",lastCheckin:todayStr},
@@ -90,27 +91,20 @@ const SAMPLE_PARKING=[
   {id:1,time:"9:14 AM",wasWorkingOn:"Writing booking confirmation for Garcia",interruption:"Phone call — supplier re: delayed order",nextStep:"Finish Garcia email then call supplier back",priority:"High",cleared:false},
 ];
 
-// ── OAuth ──────────────────────────────────────────────────────────────────────
-let tokenClient=null;
-let accessToken=null;
-let tokenExpiry=0;
-
+// ── Google OAuth ───────────────────────────────────────────────────────────────
+let tokenClient=null,accessToken=null,tokenExpiry=0;
 function getClientId(){return ls.get('tt_clientid')||'';}
 function getSheetId(){return ls.get('tt_sheetid')||'';}
-function isConfigured(){return getClientId().length>0&&getSheetId().length>0;}
+function isSheetsConfigured(){return getClientId().length>0&&getSheetId().length>0;}
 function isAuthenticated(){return accessToken&&Date.now()<tokenExpiry;}
 
 function initTokenClient(){
   const clientId=getClientId();
-  if(!clientId||!window.google) return;
+  if(!clientId||!window.google)return;
   tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:clientId,
-    scope:SCOPES,
+    client_id:clientId,scope:SCOPES,
     callback:(resp)=>{
-      if(resp.error){
-        setState({syncStatus:'error',syncMsg:'Sign-in failed: '+resp.error});
-        return;
-      }
+      if(resp.error){setState({syncStatus:'error',syncMsg:'Sign-in failed: '+resp.error});return;}
       accessToken=resp.access_token;
       tokenExpiry=Date.now()+(resp.expires_in-60)*1000;
       ls.set('tt_authed','1');
@@ -124,27 +118,21 @@ function initTokenClient(){
 }
 
 async function ensureToken(){
-  if(isAuthenticated()) return;
+  if(isAuthenticated())return;
   return new Promise((resolve,reject)=>{
-    if(!tokenClient){initTokenClient();}
-    if(!tokenClient){reject(new Error('OAuth not configured — check your Client ID'));return;}
-    const origCallback=tokenClient.callback;
-    tokenClient.callback=(resp)=>{
-      origCallback(resp);
-      if(resp.error) reject(new Error(resp.error));
-      else resolve();
-    };
+    if(!tokenClient)initTokenClient();
+    if(!tokenClient){reject(new Error('OAuth not configured'));return;}
+    const orig=tokenClient.callback;
+    tokenClient.callback=(resp)=>{orig(resp);if(resp.error)reject(new Error(resp.error));else resolve();};
     tokenClient.requestAccessToken({prompt:accessToken?'none':'consent'});
   });
 }
 
-// ── Sheets API ─────────────────────────────────────────────────────────────────
+// ── Google Sheets API ──────────────────────────────────────────────────────────
 async function sheetsReq(method,path,body){
   await ensureToken();
-  const base=`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}`;
-  const res=await fetch(base+path,{
-    method,
-    headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
+  const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}${path}`,{
+    method,headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
     body:body?JSON.stringify(body):undefined,
   });
   if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets error');}
@@ -153,9 +141,8 @@ async function sheetsReq(method,path,body){
 
 function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
 function parseSheetDate(v){if(!v)return'';const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
-
 function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'']);}
-function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>({id:Date.now()+i,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete'}));}
+function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>({id:Date.now()+i,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete',asanaGid:null}));}
 function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
 function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
 function parkingToRows(p){return p.map(p=>[p.time||'',p.wasWorkingOn||'',p.interruption||'',p.nextStep||'',p.priority||'Medium',p.cleared?'✅ Cleared':'⏳ Pending']);}
@@ -163,38 +150,102 @@ function rowsToParking(rows){return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=
 
 async function pushToSheets(tasks,projects,parking){
   await sheetsReq('POST',`/values/'Daily Tasks'!A5:J200:clear`);
-  if(tasks.length) await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(tasks)});
+  if(tasks.length)await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(tasks)});
   await sheetsReq('POST',`/values/'PM Status'!A7:K50:clear`);
-  if(projects.length) await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
+  if(projects.length)await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
   await sheetsReq('POST',`/values/'Parking Lot'!A8:F50:clear`);
-  if(parking.length) await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
+  if(parking.length)await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
 }
 
 async function pullFromSheets(){
-  const [tR,pR,kR]=await Promise.all([
-    sheetsReq('GET',`/values/'Daily Tasks'!A5:J200`),
-    sheetsReq('GET',`/values/'PM Status'!A7:K50`),
-    sheetsReq('GET',`/values/'Parking Lot'!A8:F50`),
-  ]);
+  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/'Daily Tasks'!A5:J200`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
   return{tasks:rowsToTasks(tR.values||[]),projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
+}
+
+// ── Asana API ──────────────────────────────────────────────────────────────────
+function getAsanaPAT(){return ls.get('tt_asana_pat')||'';}
+function getAsanaProject(){return ls.get('tt_asana_project')||'';}
+function isAsanaConfigured(){return getAsanaPAT().length>0&&getAsanaProject().length>0;}
+
+async function asanaReq(method,path,body){
+  const pat=getAsanaPAT();
+  if(!pat)throw new Error('Asana not configured');
+  const res=await fetch(`${ASANA_API}${path}`,{
+    method,
+    headers:{'Authorization':'Bearer '+pat,'Content-Type':'application/json','Accept':'application/json'},
+    body:body?JSON.stringify({data:body}):undefined,
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.errors?.[0]?.message||'Asana API error');}
+  return res.json();
+}
+
+// Map app task → Asana task fields
+function taskToAsana(task){
+  const notes=[task.notes,task.job?`Job/Customer: ${task.job}`:'',`Category: ${task.category}`].filter(Boolean).join('\n');
+  const obj={
+    name:task.description,
+    notes,
+    completed:task.done||task.status==='Complete',
+    projects:[getAsanaProject()],
+  };
+  if(task.dueDate) obj.due_on=task.dueDate;
+  return obj;
+}
+
+// Push all tasks to Asana — create new ones, update existing ones
+async function pushToAsana(tasks){
+  const project=getAsanaProject();
+  if(!project)throw new Error('No Asana project configured');
+
+  const updatedTasks=[];
+  for(const task of tasks){
+    const asanaData=taskToAsana(task);
+    try{
+      if(task.asanaGid){
+        // Update existing Asana task
+        await asanaReq('PUT',`/tasks/${task.asanaGid}`,{
+          name:asanaData.name,
+          notes:asanaData.notes,
+          completed:asanaData.completed,
+          due_on:asanaData.due_on||null,
+        });
+        updatedTasks.push({...task});
+      } else {
+        // Create new Asana task
+        const res=await asanaReq('POST','/tasks',asanaData);
+        updatedTasks.push({...task,asanaGid:res.data?.gid||null});
+      }
+    } catch(e){
+      // If task GID is stale (deleted in Asana), create fresh
+      if(task.asanaGid&&e.message.includes('Not Found')){
+        const res=await asanaReq('POST','/tasks',asanaData);
+        updatedTasks.push({...task,asanaGid:res.data?.gid||null});
+      } else {
+        updatedTasks.push({...task});
+      }
+    }
+  }
+  return updatedTasks;
+}
+
+// Test Asana connection by fetching the project
+async function testAsanaConnection(){
+  const res=await asanaReq('GET',`/projects/${getAsanaProject()}?opt_fields=name`);
+  return res.data?.name||'Connected';
 }
 
 // ── Auto-push ──────────────────────────────────────────────────────────────────
 let autoPushTimer=null;
 function scheduleAutoPush(){
-  if(!isConfigured()||!ls.get('tt_authed')) return;
+  if(!isSheetsConfigured()||!ls.get('tt_authed'))return;
   clearTimeout(autoPushTimer);
   autoPushTimer=setTimeout(async()=>{
-    if(!isConfigured()) return;
     setState({syncStatus:'syncing',syncMsg:'Auto-saving to Sheets…'});
     try{
       await pushToSheets(state.tasks,state.projects,state.parking);
       setState({syncStatus:'success',syncMsg:'Auto-saved ✓'});
       setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
-    }catch(e){
-      // Silent fail on auto-push — don't interrupt the user
-      setState({syncStatus:null,syncMsg:''});
-    }
+    }catch(e){setState({syncStatus:null,syncMsg:''});}
   },AUTOPUSH_DELAY);
 }
 
@@ -206,7 +257,8 @@ let state={
   parking:  JSON.parse(ls.get('tt_parking')||'null')||SAMPLE_PARKING,
   modal:null,filterCat:'All',filterStatus:'All',search:'',
   syncStatus:null,syncMsg:'',
-  showSettings:false,
+  asanaSyncStatus:null,asanaSyncMsg:'',
+  showSettings:false,settingsTab:'sheets',
   saveTimer:null,
 };
 
@@ -226,30 +278,37 @@ function setState(updates){
   render();
 }
 
-// ── Manual sync ────────────────────────────────────────────────────────────────
+// ── Manual sync actions ────────────────────────────────────────────────────────
 async function syncPush(){
-  if(!isConfigured()){setState({showSettings:true});return;}
+  if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
   clearTimeout(autoPushTimer);
   setState({syncStatus:'syncing',syncMsg:'Pushing to Google Sheets…'});
   try{
     await pushToSheets(state.tasks,state.projects,state.parking);
-    setState({syncStatus:'success',syncMsg:'Pushed to Google Sheets ✓'});
+    setState({syncStatus:'success',syncMsg:'Pushed ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Push failed: '+e.message});}
 }
 
 async function syncPull(){
-  if(!isConfigured()){setState({showSettings:true});return;}
+  if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
   setState({syncStatus:'syncing',syncMsg:'Pulling from Google Sheets…'});
   try{
     const data=await pullFromSheets();
-    if(!data.tasks.length&&!data.projects.length&&!data.parking.length){
-      setState({syncStatus:'error',syncMsg:'Sheet appears empty — push first.'});
-      return;
-    }
-    setState({...data,syncStatus:'success',syncMsg:'Pulled from Google Sheets ✓'});
+    if(!data.tasks.length&&!data.projects.length){setState({syncStatus:'error',syncMsg:'Sheet appears empty — push first.'});return;}
+    setState({...data,syncStatus:'success',syncMsg:'Pulled ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
+}
+
+async function asanaPush(){
+  if(!isAsanaConfigured()){setState({showSettings:true,settingsTab:'asana'});return;}
+  setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Pushing to Asana…'});
+  try{
+    const updatedTasks=await pushToAsana(state.tasks);
+    setState({tasks:updatedTasks,asanaSyncStatus:'success',asanaSyncMsg:`${updatedTasks.length} tasks synced to Asana ✓`});
+    setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),4000);
+  }catch(e){setState({asanaSyncStatus:'error',asanaSyncMsg:'Asana sync failed: '+e.message});}
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -266,7 +325,7 @@ function modal(content){return`<div onclick="handleModalBg(event)" style="positi
 function render(){document.getElementById('app').innerHTML=buildApp();}
 
 function buildApp(){
-  if(state.showSettings) return buildSettingsPage();
+  if(state.showSettings)return buildSettingsPage();
   const openParking=state.parking.filter(k=>!k.cleared);
   const counts={total:state.tasks.length,done:state.tasks.filter(t=>t.done).length,over:state.tasks.filter(t=>isOverdue(t.dueDate,t.status)).length,today:state.tasks.filter(t=>t.dueDate===todayStr&&!t.done).length};
   return`<div style="padding-bottom:env(safe-area-inset-bottom);">${buildHeader(counts,openParking.length)}<div style="max-width:720px;margin:0 auto;padding:16px 14px 80px;">${buildSyncBar()}${state.tab==='tasks'?buildTasksTab(counts):''}${state.tab==='parking'?buildParkingTab(openParking):''}${state.tab==='pm'?buildPMTab():''}</div>${state.modal?buildModal():''}</div>`;
@@ -274,115 +333,170 @@ function buildApp(){
 
 // ── Sync bar ───────────────────────────────────────────────────────────────────
 function buildSyncBar(){
-  const configured=isConfigured();
-  const authed=!!ls.get('tt_authed');
-  const statusColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.syncStatus]||'#374151';
-  const statusBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.syncStatus]||'transparent';
-  const spinnerHTML=state.syncStatus==='syncing'?`<span class="spin">⟳</span> `:'';
-  let statusLabel='';
-  if(state.syncStatus) statusLabel=`<span style="font-size:12px;font-weight:600;color:${statusColor};background:${statusBg};padding:3px 9px;border-radius:99px;">${spinnerHTML}${state.syncMsg}</span>`;
-  else if(!configured) statusLabel=`<span style="font-size:12px;color:#9CA3AF;">⚠ Not configured</span>`;
-  else if(!authed) statusLabel=`<span style="font-size:12px;color:#A16207;">Sign in to enable sync</span>`;
-  else statusLabel=`<span style="font-size:12px;color:#15803D;">✓ Google Sheets connected · auto-saves on changes</span>`;
-  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><div style="flex:1;min-width:100px;">${statusLabel}</div><div style="display:flex;gap:6px;"><button onclick="syncPush()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Push</button><button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 13px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button><button onclick="setState({showSettings:true})" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 11px;font-size:13px;">⚙</button></div></div>`;
+  const sheetsOk=isSheetsConfigured()&&!!ls.get('tt_authed');
+  const asanaOk=isAsanaConfigured();
+  const sColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.syncStatus]||'#374151';
+  const sBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.syncStatus]||'transparent';
+  const aColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.asanaSyncStatus]||'#374151';
+  const aBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.asanaSyncStatus]||'transparent';
+  const spin=s=>s==='syncing'?`<span class="spin">⟳</span> `:'';
+
+  let sheetsLabel=state.syncStatus
+    ?`<span style="font-size:12px;font-weight:600;color:${sColor};background:${sBg};padding:3px 9px;border-radius:99px;">${spin(state.syncStatus)}${state.syncMsg}</span>`
+    :sheetsOk
+      ?`<span style="font-size:11px;color:#15803D;">✓ Sheets · auto-saves</span>`
+      :`<span style="font-size:11px;color:#9CA3AF;">Sheets: not connected</span>`;
+
+  let asanaLabel=state.asanaSyncStatus
+    ?`<span style="font-size:12px;font-weight:600;color:${aColor};background:${aBg};padding:3px 9px;border-radius:99px;">${spin(state.asanaSyncStatus)}${state.asanaSyncMsg}</span>`
+    :asanaOk
+      ?`<span style="font-size:11px;color:#F97316;">✓ Asana connected</span>`
+      :`<span style="font-size:11px;color:#9CA3AF;">Asana: not connected</span>`;
+
+  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:14px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px;">${sheetsLabel}${asanaLabel}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <button onclick="syncPush()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Sheets</button>
+        <button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button>
+        <button onclick="asanaPush()" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.asanaSyncStatus==='syncing'?' disabled':''}>↑ Asana</button>
+        <button onclick="setState({showSettings:true})" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 10px;font-size:13px;">⚙</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ── Settings page ──────────────────────────────────────────────────────────────
 function buildSettingsPage(){
-  const configured=isConfigured();
-  const authed=!!ls.get('tt_authed');
-  const connStatus=!configured?{color:'#A16207',bg:'#FEF9C3',icon:'⚠',label:'Not configured',sub:'Enter your credentials below to enable sync.'}:authed?{color:'#15803D',bg:'#DCFCE7',icon:'✓',label:'Connected & authenticated',sub:'Auto-push is active. Changes sync automatically.'}:{color:'#2563EB',bg:'#DBEAFE',icon:'→',label:'Credentials saved — sign in to activate',sub:'Tap "Sign in with Google" below to authorize.'};
+  const tabs=[{id:'sheets',label:'Google Sheets'},{id:'asana',label:'Asana'}];
   return`
 <div style="background:#1F2937;padding:14px 16px;position:sticky;top:0;z-index:50;">
   <div style="max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px;">
     <button onclick="setState({showSettings:false})" style="background:none;border:none;color:#9CA3AF;font-size:22px;line-height:1;padding:0 4px 2px;">←</button>
     <span style="font-size:16px;font-weight:700;color:#fff;">Settings</span>
   </div>
+  <div style="max-width:720px;margin:0 auto;padding:8px 0 0;display:flex;gap:2px;">
+    ${tabs.map(t=>`<button onclick="setState({settingsTab:'${t.id}'})" style="flex:1;padding:8px 4px;background:${state.settingsTab===t.id?'#fff':'transparent'};color:${state.settingsTab===t.id?'#1F2937':'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;">${t.label}</button>`).join('')}
+  </div>
 </div>
 <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
+  ${state.settingsTab==='sheets'?buildSheetsSettings():buildAsanaSettings()}
+</div>`;
+}
 
-  <!-- Status card -->
-  <div style="background:${connStatus.bg};border:1px solid ${connStatus.color}30;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-    <div style="font-size:14px;font-weight:700;color:${connStatus.color};">${connStatus.icon} ${connStatus.label}</div>
-    <div style="font-size:12px;color:${connStatus.color};opacity:0.85;margin-top:3px;">${connStatus.sub}</div>
+function buildSheetsSettings(){
+  const configured=isSheetsConfigured();
+  const authed=!!ls.get('tt_authed');
+  const status=!configured?{color:'#A16207',bg:'#FEF9C3',icon:'⚠',label:'Not configured',sub:'Enter your credentials below.'}:authed?{color:'#15803D',bg:'#DCFCE7',icon:'✓',label:'Connected & authenticated',sub:'Auto-push active — changes sync automatically.'}:{color:'#2563EB',bg:'#DBEAFE',icon:'→',label:'Credentials saved — sign in to activate',sub:'Tap "Sign in with Google" below.'};
+  return`
+  <div style="background:${status.bg};border:1px solid ${status.color}30;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:700;color:${status.color};">${status.icon} ${status.label}</div>
+    <div style="font-size:12px;color:${status.color};opacity:0.85;margin-top:3px;">${status.sub}</div>
   </div>
-
-  <!-- Credentials form -->
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Credentials</div>
-    <form onsubmit="saveSettings(event)">
+    <form onsubmit="saveSheetsSettings(event)">
       <div style="margin-bottom:14px;">
         <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">OAuth Client ID</label>
         <input id="cfg-clientid" type="password" value="${getClientId()}" placeholder="Paste your OAuth Client ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Google Cloud Console → Credentials → OAuth 2.0 Client ID</div>
       </div>
       <div style="margin-bottom:16px;">
         <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Spreadsheet ID</label>
         <input id="cfg-sheetid" type="password" value="${getSheetId()}" placeholder="Paste your Google Sheet ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From your Sheet URL: …/spreadsheets/d/<strong>THIS_PART</strong>/edit</div>
       </div>
       <button type="submit" style="width:100%;background:#1F2937;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save Credentials</button>
     </form>
   </div>
-
-  <!-- Sign in / out -->
   ${configured?`
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Google Account</div>
-    <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Authorizes the app to read and write your Google Sheet. You'll be prompted to sign in with your Google account.</div>
+    <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Authorizes read and write access to your Google Sheet.</div>
     ${authed
       ?`<button onclick="signOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out of Google</button>`
       :`<button onclick="signIn()" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Sign in with Google →</button>`
     }
   </div>`:''}
-
-  <!-- Auto-push info -->
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How sync works</div>
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Sheets sync works</div>
     <div style="font-size:13px;color:#374151;line-height:1.75;">
-      <div style="margin-bottom:6px;"><strong>🔄 Auto-push</strong> — After you make any change, the app waits 8 seconds then automatically syncs to your Google Sheet. You don't have to do anything.</div>
-      <div style="margin-bottom:6px;"><strong>↑ Push</strong> — Manually send everything to Google Sheets immediately.</div>
-      <div style="margin-bottom:6px;"><strong>↓ Pull</strong> — Load data from Google Sheets into the app. Use this if you've edited the sheet directly.</div>
-      <div style="font-size:12px;color:#9CA3AF;margin-top:6px;">Push and Pull replace — they don't merge. Last sync wins.</div>
+      <div style="margin-bottom:5px;"><strong>🔄 Auto-push</strong> — Syncs 8 seconds after any change. Runs silently.</div>
+      <div style="margin-bottom:5px;"><strong>↑ Sheets</strong> — Manual immediate push to Google Sheets.</div>
+      <div><strong>↓ Pull</strong> — Load sheet edits back into the app.</div>
     </div>
   </div>
-
-  ${configured?`<button onclick="clearConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove all credentials from this device</button>`:''}
-</div>`;
+  ${configured?`<button onclick="clearSheetsConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Google credentials</button>`:''}`;
 }
 
-window.saveSettings=function(e){
+function buildAsanaSettings(){
+  const configured=isAsanaConfigured();
+  const asanaPat=getAsanaPAT();
+  const asanaProject=getAsanaProject();
+  return`
+  <div style="background:${configured?'#FFF7ED':'#FEF9C3'};border:1px solid ${configured?'#FED7AA':'#FDE68A'};border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:700;color:${configured?'#C2410C':'#A16207'};">${configured?'✓ Asana connected':'⚠ Asana not configured'}</div>
+    <div style="font-size:12px;color:${configured?'#9A3412':'#92400E'};margin-top:3px;">${configured?'Tap "↑ Asana" on the main screen to push all tasks.':'Enter your Personal Access Token and Project GID below.'}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Asana Credentials</div>
+    <form onsubmit="saveAsanaSettings(event)">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Personal Access Token</label>
+        <input id="cfg-asana-pat" type="password" value="${asanaPat}" placeholder="Paste your Asana PAT" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Asana → My Settings → Apps → Personal access tokens</div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Project GID</label>
+        <input id="cfg-asana-project" type="password" value="${asanaProject}" placeholder="Paste your Asana Project GID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
+        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Asana project URL: app.asana.com/0/<strong>THIS_NUMBER</strong>/list</div>
+      </div>
+      <button type="submit" style="width:100%;background:#F97316;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save & Test Asana Connection</button>
+    </form>
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Asana sync works</div>
+    <div style="font-size:13px;color:#374151;line-height:1.75;">
+      <div style="margin-bottom:5px;"><strong>↑ Asana</strong> — Pushes all tasks to your Asana project. New tasks are created; existing ones are updated.</div>
+      <div style="margin-bottom:5px;"><strong>Smart tracking</strong> — Each task remembers its Asana ID, so subsequent pushes update rather than duplicate.</div>
+      <div style="margin-bottom:5px;"><strong>What syncs:</strong> Task name, notes, job/customer info, category, due date, and completion status.</div>
+      <div style="font-size:12px;color:#9CA3AF;margin-top:6px;">Asana sync is one-way (app → Asana). Changes made directly in Asana won't come back to the app.</div>
+    </div>
+  </div>
+  ${configured?`<button onclick="clearAsanaConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Asana credentials</button>`:''}`;
+}
+
+// ── Settings actions ───────────────────────────────────────────────────────────
+window.saveSheetsSettings=function(e){
   e.preventDefault();
   const clientId=document.getElementById('cfg-clientid').value.trim();
   const sheetId=document.getElementById('cfg-sheetid').value.trim();
   if(!clientId||!sheetId){alert('Please fill in both fields.');return;}
-  ls.set('tt_clientid',clientId);
-  ls.set('tt_sheetid',sheetId);
-  tokenClient=null; // reset so it reinitialises with new client ID
-  setState({showSettings:true,syncStatus:'success',syncMsg:'Credentials saved ✓'});
+  ls.set('tt_clientid',clientId);ls.set('tt_sheetid',sheetId);
+  tokenClient=null;
+  setState({showSettings:true,settingsTab:'sheets',syncStatus:'success',syncMsg:'Credentials saved ✓'});
   setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
   initTokenClient();
 };
 
-window.signIn=function(){
-  initTokenClient();
-  if(!tokenClient){alert('Please save your Client ID first.');return;}
-  tokenClient.requestAccessToken({prompt:'consent'});
+window.saveAsanaSettings=async function(e){
+  e.preventDefault();
+  const pat=document.getElementById('cfg-asana-pat').value.trim();
+  const project=document.getElementById('cfg-asana-project').value.trim();
+  if(!pat||!project){alert('Please fill in both fields.');return;}
+  ls.set('tt_asana_pat',pat);ls.set('tt_asana_project',project);
+  setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Testing Asana connection…',showSettings:true,settingsTab:'asana'});
+  try{
+    const name=await testAsanaConnection();
+    setState({asanaSyncStatus:'success',asanaSyncMsg:`Connected to "${name}" ✓`});
+    setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),3500);
+  }catch(ex){
+    setState({asanaSyncStatus:'error',asanaSyncMsg:'Connection failed: '+ex.message});
+  }
 };
 
-window.signOut=function(){
-  if(accessToken) google.accounts.oauth2.revoke(accessToken,()=>{});
-  accessToken=null; tokenExpiry=0;
-  ls.del('tt_authed');
-  setState({showSettings:true,syncStatus:null,syncMsg:''});
-};
-
-window.clearConfig=function(){
-  if(!confirm('Remove all credentials from this device?')) return;
-  window.signOut();
-  ls.del('tt_clientid'); ls.del('tt_sheetid');
-  setState({showSettings:true});
-};
+window.signIn=function(){initTokenClient();if(!tokenClient){alert('Please save your Client ID first.');return;}tokenClient.requestAccessToken({prompt:'consent'});};
+window.signOut=function(){if(accessToken)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;ls.del('tt_authed');setState({showSettings:true,settingsTab:'sheets',syncStatus:null,syncMsg:''});};
+window.clearSheetsConfig=function(){if(!confirm('Remove Google credentials?'))return;window.signOut();ls.del('tt_clientid');ls.del('tt_sheetid');setState({showSettings:true,settingsTab:'sheets'});};
+window.clearAsanaConfig=function(){if(!confirm('Remove Asana credentials?'))return;ls.del('tt_asana_pat');ls.del('tt_asana_project');setState({showSettings:true,settingsTab:'asana'});};
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 function buildHeader(counts,parkCount){
@@ -401,7 +515,14 @@ function buildTasksTab(counts){
   return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
 }
 
-function taskRow(task,last,showCat){const over=isOverdue(task.dueDate,task.status);const cc=CAT_COLORS[task.category]||{bg:'#F1F5F9',text:'#374151'};const pc=PRI_COLORS[task.priority]||PRI_COLORS.Medium;const sc=STATUS_COLORS[task.status]||STATUS_COLORS['Not Started'];return`<div style="padding:11px 12px;border-bottom:${last?'none':'1px solid #F3F4F6'};display:flex;gap:10px;align-items:flex-start;background:${task.done?'#FAFAFA':over?'#FFF5F5':'#fff'};opacity:${task.done?'0.6':'1'};"><button onclick="toggleTask(${task.id})" style="width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-top:1px;border:${task.done?'none':'2px solid #D1D5DB'};background:${task.done?'#16A34A':'transparent'};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">${task.done?'✓':''}</button><div style="flex:1;min-width:0;"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:3px;"><span style="font-size:14px;font-weight:${task.done?400:600};color:${task.done?'#9CA3AF':'#111827'};text-decoration:${task.done?'line-through':'none'};word-break:break-word;">${task.description}</span>${over&&!task.done?`<span style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:99px;padding:1px 7px;">Overdue</span>`:''}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${showCat?badge(task.category,{bg:cc.bg,text:cc.text}):''}${badge(task.priority,pc)}${badge(task.status,sc)}${task.job?`<span style="font-size:11px;color:#6B7280;">· ${task.job}</span>`:''}${task.dueDate?`<span style="font-size:11px;color:${over?'#DC2626':'#6B7280'};">· ${fmtDate(task.dueDate)}</span>`:''}</div>${task.notes?`<div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5;">${task.notes}</div>`:''}</div><div style="display:flex;gap:3px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(task).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 8px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteTask(${task.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div>`;}
+function taskRow(task,last,showCat){
+  const over=isOverdue(task.dueDate,task.status);
+  const cc=CAT_COLORS[task.category]||{bg:'#F1F5F9',text:'#374151'};
+  const pc=PRI_COLORS[task.priority]||PRI_COLORS.Medium;
+  const sc=STATUS_COLORS[task.status]||STATUS_COLORS['Not Started'];
+  const asanaDot=task.asanaGid?`<span title="Synced to Asana" style="font-size:10px;color:#F97316;">●</span>`:'';
+  return`<div style="padding:11px 12px;border-bottom:${last?'none':'1px solid #F3F4F6'};display:flex;gap:10px;align-items:flex-start;background:${task.done?'#FAFAFA':over?'#FFF5F5':'#fff'};opacity:${task.done?'0.6':'1'};"><button onclick="toggleTask(${task.id})" style="width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-top:1px;border:${task.done?'none':'2px solid #D1D5DB'};background:${task.done?'#16A34A':'transparent'};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">${task.done?'✓':''}</button><div style="flex:1;min-width:0;"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:3px;"><span style="font-size:14px;font-weight:${task.done?400:600};color:${task.done?'#9CA3AF':'#111827'};text-decoration:${task.done?'line-through':'none'};word-break:break-word;">${task.description}</span>${asanaDot}${over&&!task.done?`<span style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:99px;padding:1px 7px;">Overdue</span>`:''}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${showCat?badge(task.category,{bg:cc.bg,text:cc.text}):''}${badge(task.priority,pc)}${badge(task.status,sc)}${task.job?`<span style="font-size:11px;color:#6B7280;">· ${task.job}</span>`:''}${task.dueDate?`<span style="font-size:11px;color:${over?'#DC2626':'#6B7280'};">· ${fmtDate(task.dueDate)}</span>`:''}</div>${task.notes?`<div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5;">${task.notes}</div>`:''}</div><div style="display:flex;gap:3px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(task).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 8px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteTask(${task.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div>`;
+}
 
 // ── Parking Tab ────────────────────────────────────────────────────────────────
 function buildParkingTab(openItems){
@@ -439,24 +560,19 @@ window.clearParking=id=>setState({parking:state.parking.map(k=>k.id===id?{...k,c
 window.deleteParking=id=>setState({parking:state.parking.filter(k=>k.id!==id)});
 window.deleteProject=id=>{if(confirm('Delete this project?'))setState({projects:state.projects.filter(p=>p.id!==id)});};
 window.setParkPri=pri=>{PRIORITIES.forEach(p=>{const btn=document.getElementById(`pri-${p}`);if(!btn)return;const pc=PRI_COLORS[p];btn.style.border=p===pri?`2px solid ${pc.text}`:'2px solid #E5E7EB';btn.style.background=p===pri?pc.bg:'#fff';btn.style.color=p===pri?pc.text:'#374151';});window._parkPri=pri;};
-window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done:fd.get('status')==='Complete'};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
+window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done:fd.get('status')==='Complete',asanaGid:id?state.tasks.find(t=>t.id===id)?.asanaGid||null:null};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
 window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});};
 window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!proj.name.trim())return;setState({projects:id?state.projects.map(p=>p.id===id?proj:p):[proj,...state.projects],modal:null});};
 window.syncPush=syncPush;
 window.syncPull=syncPull;
+window.asanaPush=asanaPush;
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
-window.addEventListener('load',()=>{
-  if(isConfigured()) initTokenClient();
-});
+window.addEventListener('load',()=>{if(isSheetsConfigured())initTokenClient();});
 render();
 
 // ── Service Worker ─────────────────────────────────────────────────────────────
-if('serviceWorker' in navigator){
-  const sw=`const C='tt-v3';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;
-  const blob=new Blob([sw],{type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-}
+if('serviceWorker' in navigator){const sw=`const C='tt-v4';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
 </script>
 <script>
 const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='40' y='56' width='112' height='14' rx='7' fill='%232563EB'/%3E%3Crect x='40' y='84' width='88' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='112' width='100' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='140' width='72' height='14' rx='7' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
