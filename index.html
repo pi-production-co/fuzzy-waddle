@@ -141,25 +141,92 @@ async function sheetsReq(method,path,body){
 
 function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
 function parseSheetDate(v){if(!v)return'';const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
-function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'']);}
-function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>({id:Date.now()+i,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete',asanaGid:null}));}
+function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'',String(t.id||'')]);}
+function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete',completedAt:(r[9]==='✅'||r[7]==='Complete')?parseSheetDate(r[6])||todayStr:null,asanaGid:null};});}
 function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
 function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
 function parkingToRows(p){return p.map(p=>[p.time||'',p.wasWorkingOn||'',p.interruption||'',p.nextStep||'',p.priority||'Medium',p.cleared?'✅ Cleared':'⏳ Pending']);}
 function rowsToParking(rows){return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=>({id:Date.now()+i,time:r[0]||'',wasWorkingOn:r[1]||'',interruption:r[2]||'',nextStep:r[3]||'',priority:r[4]||'Medium',cleared:r[5]==='✅ Cleared'}));}
 
 async function pushToSheets(tasks,projects,parking){
-  await sheetsReq('POST',`/values/'Daily Tasks'!A5:J200:clear`);
-  if(tasks.length)await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(tasks)});
+  // Read current sheet tasks so direct-in-sheet additions are preserved (merge, not overwrite)
+  let sheetTasks=[];
+  try{const tR=await sheetsReq('GET',`/values/'Daily Tasks'!A5:K500`);sheetTasks=rowsToTasks(tR.values||[]);}catch(e){}
+  sheetTasks=reconcileIds(tasks,sheetTasks);
+  const merged=mergeForPush(tasks,sheetTasks);
+  await sheetsReq('POST',`/values/'Daily Tasks'!A5:K500:clear`);
+  if(merged.length)await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(merged)});
   await sheetsReq('POST',`/values/'PM Status'!A7:K50:clear`);
   if(projects.length)await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
   await sheetsReq('POST',`/values/'Parking Lot'!A8:F50:clear`);
   if(parking.length)await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
+  // Append completed tasks to the permanent, append-only Completed Log (never cleared)
+  try{await appendCompletedLog(merged);}catch(e){}
+  return merged;
 }
 
-async function pullFromSheets(){
-  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/'Daily Tasks'!A5:J200`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
-  return{tasks:rowsToTasks(tR.values||[]),projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
+// ── Merge + history helpers ────────────────────────────────────────────────────
+function getTombstones(){try{return JSON.parse(ls.get('tt_deleted')||'[]');}catch{return[];}}
+function addTombstone(id){const now=Date.now();const t=getTombstones().filter(x=>now-x.ts<60*86400000);t.push({id:String(id),ts:now});ls.set('tt_deleted',JSON.stringify(t));}
+function tombstonedIds(){return new Set(getTombstones().map(x=>String(x.id)));}
+function indexById(arr){const m=new Map();arr.forEach(t=>m.set(String(t.id),t));return m;}
+// Migration: sheet rows without a stored ID get matched to existing app tasks by description+job
+function reconcileIds(appTasks,sheetTasks){
+  const used=new Set();const norm=v=>String(v||'').trim().toLowerCase();
+  sheetTasks.forEach(s=>{
+    if(s._noId){
+      const m=appTasks.find(a=>!used.has(String(a.id))&&norm(a.description)===norm(s.description)&&norm(a.job)===norm(s.job));
+      if(m){s.id=m.id;used.add(String(m.id));}
+    }
+    delete s._noId;
+  });
+  return sheetTasks;
+}
+// Push: app wins on conflict; sheet-only additions kept; app-deleted (tombstoned) removed
+function mergeForPush(appTasks,sheetTasks){
+  const tomb=tombstonedIds();const appIdx=indexById(appTasks);const out=[];
+  appTasks.forEach(t=>{if(!tomb.has(String(t.id)))out.push(t);});
+  sheetTasks.forEach(s=>{const id=String(s.id);if(!appIdx.has(id)&&!tomb.has(id))out.push(s);});
+  return out;
+}
+// Pull: sheet wins on conflict; app-only (unpushed) tasks kept
+function mergeForPull(appTasks,sheetTasks){
+  const tomb=tombstonedIds();const shIdx=indexById(sheetTasks);const out=[];
+  sheetTasks.forEach(s=>{if(!tomb.has(String(s.id)))out.push(s);});
+  appTasks.forEach(t=>{const id=String(t.id);if(!shIdx.has(id)&&!tomb.has(id))out.push(t);});
+  return out;
+}
+// Completed Log (append-only). Creates the tab on first use.
+async function getSpreadsheetMeta(){
+  await ensureToken();
+  const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}?fields=sheets.properties.title`,{headers:{'Authorization':'Bearer '+accessToken}});
+  if(!res.ok)throw new Error('meta read failed');
+  return res.json();
+}
+async function ensureCompletedLog(){
+  const meta=await getSpreadsheetMeta();
+  const titles=(meta.sheets||[]).map(s=>s.properties.title);
+  if(titles.includes('Completed Log'))return;
+  await sheetsReq('POST',`:batchUpdate`,{requests:[{addSheet:{properties:{title:'Completed Log'}}}]});
+  await sheetsReq('PUT',`/values/'Completed Log'!A1?valueInputOption=USER_ENTERED`,{range:"'Completed Log'!A1",majorDimension:'ROWS',values:[['Completed Date','Task','Category','Job / Customer','Priority','Notes','Task ID']]});
+}
+async function appendCompletedLog(tasks){
+  const done=tasks.filter(t=>t.done||t.status==='Complete');
+  if(!done.length)return;
+  await ensureCompletedLog();
+  const existing=new Set();
+  try{const r=await sheetsReq('GET',`/values/'Completed Log'!G2:G100000`);(r.values||[]).forEach(row=>{if(row[0])existing.add(String(row[0]).trim());});}catch(e){}
+  const add=done.filter(t=>!existing.has(String(t.id)));
+  if(!add.length)return;
+  const rows=add.map(t=>[t.completedAt?fmtDate(t.completedAt):fmtDate(todayStr),t.description||'',t.category||'',t.job||'',t.priority||'',t.notes||'',String(t.id||'')]);
+  await sheetsReq('POST',`/values/'Completed Log'!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{range:"'Completed Log'!A1",majorDimension:'ROWS',values:rows});
+}
+
+async function pullFromSheets(appTasks){
+  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/'Daily Tasks'!A5:K500`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
+  let sheetTasks=reconcileIds(appTasks||[],rowsToTasks(tR.values||[]));
+  const mergedTasks=mergeForPull(appTasks||[],sheetTasks);
+  return{tasks:mergedTasks,projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
 }
 
 // ── Asana API ──────────────────────────────────────────────────────────────────
@@ -242,11 +309,19 @@ function scheduleAutoPush(){
   autoPushTimer=setTimeout(async()=>{
     setState({syncStatus:'syncing',syncMsg:'Auto-saving to Sheets…'});
     try{
-      await pushToSheets(state.tasks,state.projects,state.parking);
-      setState({syncStatus:'success',syncMsg:'Auto-saved ✓'});
+      const merged=await pushToSheets(state.tasks,state.projects,state.parking);
+      applySync({tasks:merged,syncStatus:'success',syncMsg:'Auto-saved ✓'});
       setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
     }catch(e){setState({syncStatus:null,syncMsg:''});}
   },AUTOPUSH_DELAY);
+}
+// Apply sync results (saves + renders) WITHOUT scheduling another auto-push, avoiding loops
+function applySync(updates){
+  Object.assign(state,updates);
+  ls.set('tt_tasks',JSON.stringify(state.tasks));
+  ls.set('tt_projects',JSON.stringify(state.projects));
+  ls.set('tt_parking',JSON.stringify(state.parking));
+  render();
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -284,8 +359,8 @@ async function syncPush(){
   clearTimeout(autoPushTimer);
   setState({syncStatus:'syncing',syncMsg:'Pushing to Google Sheets…'});
   try{
-    await pushToSheets(state.tasks,state.projects,state.parking);
-    setState({syncStatus:'success',syncMsg:'Pushed ✓'});
+    const merged=await pushToSheets(state.tasks,state.projects,state.parking);
+    applySync({tasks:merged,syncStatus:'success',syncMsg:'Merged & pushed ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Push failed: '+e.message});}
 }
@@ -294,9 +369,8 @@ async function syncPull(){
   if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
   setState({syncStatus:'syncing',syncMsg:'Pulling from Google Sheets…'});
   try{
-    const data=await pullFromSheets();
-    if(!data.tasks.length&&!data.projects.length){setState({syncStatus:'error',syncMsg:'Sheet appears empty — push first.'});return;}
-    setState({...data,syncStatus:'success',syncMsg:'Pulled ✓'});
+    const data=await pullFromSheets(state.tasks);
+    applySync({...data,syncStatus:'success',syncMsg:'Merged & pulled ✓'});
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
 }
@@ -512,7 +586,7 @@ function buildTasksTab(counts){
   const catGroups=CATEGORIES.map(cat=>({cat,tasks:filtered.filter(t=>t.category===cat)})).filter(g=>g.tasks.length>0);
   const boardHTML=catGroups.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No tasks match.</div>`:catGroups.map(({cat,tasks:ct})=>{const cc=CAT_COLORS[cat]||{bg:'#F1F5F9',text:'#374151',dot:'#94A3B8'};return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="background:${cc.bg};padding:9px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${cc.dot}25;"><div style="display:flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:${cc.dot};display:inline-block;"></span><span style="font-size:13px;font-weight:700;color:${cc.text};">${cat}</span></div><span style="font-size:11px;font-weight:700;color:${cc.text};background:${cc.dot}25;border-radius:99px;padding:2px 8px;">${ct.filter(t=>!t.done).length} open</span></div>${ct.map((t,i)=>taskRow(t,i===ct.length-1,false)).join('')}</div>`;}).join('');
   const listHTML=filtered.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;">No tasks match.</div>`:`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">${filtered.map((t,i)=>taskRow(t,i===filtered.length-1,true)).join('')}</div>`;
-  return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
+  return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div>${counts.done>0?`<div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><button onclick="archiveCompleted()" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:6px 12px;font-size:12px;color:#6B7280;font-weight:600;">Clear ${counts.done} completed from active list →</button></div>`:''}<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
 }
 
 function taskRow(task,last,showCat){
@@ -554,25 +628,39 @@ window.setFilter=(type,val)=>setState(type==='cat'?{filterCat:val}:{filterStatus
 window.closeModal=()=>setState({modal:null});
 window.handleModalBg=e=>{if(e.target===e.currentTarget)setState({modal:null});};
 window.openModal=data=>{if(data==='addTask'||data==='addPark'||data==='addProject'){setState({modal:data});return;}let obj=typeof data==='string'?JSON.parse(data.replace(/&quot;/g,'"')):data;setState({modal:obj});};
-window.toggleTask=id=>setState({tasks:state.tasks.map(t=>t.id===id?{...t,done:!t.done,status:!t.done?'Complete':'In Progress'}:t)});
-window.deleteTask=id=>{if(confirm('Delete this task?'))setState({tasks:state.tasks.filter(t=>t.id!==id)});};
+window.toggleTask=id=>setState({tasks:state.tasks.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,status:nd?'Complete':'In Progress',completedAt:nd?todayStr:null};})});
+window.deleteTask=id=>{if(confirm('Delete this task?')){addTombstone(id);setState({tasks:state.tasks.filter(t=>t.id!==id)});}};
 window.clearParking=id=>setState({parking:state.parking.map(k=>k.id===id?{...k,cleared:true}:k)});
 window.deleteParking=id=>setState({parking:state.parking.filter(k=>k.id!==id)});
 window.deleteProject=id=>{if(confirm('Delete this project?'))setState({projects:state.projects.filter(p=>p.id!==id)});};
 window.setParkPri=pri=>{PRIORITIES.forEach(p=>{const btn=document.getElementById(`pri-${p}`);if(!btn)return;const pc=PRI_COLORS[p];btn.style.border=p===pri?`2px solid ${pc.text}`:'2px solid #E5E7EB';btn.style.background=p===pri?pc.bg:'#fff';btn.style.color=p===pri?pc.text:'#374151';});window._parkPri=pri;};
-window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done:fd.get('status')==='Complete',asanaGid:id?state.tasks.find(t=>t.id===id)?.asanaGid||null:null};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
+window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const prev=id?state.tasks.find(t=>t.id===id):null;const done=fd.get('status')==='Complete';const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done,completedAt:done?((prev&&prev.completedAt)?prev.completedAt:todayStr):null,asanaGid:prev?prev.asanaGid||null:null};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
 window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});};
 window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!proj.name.trim())return;setState({projects:id?state.projects.map(p=>p.id===id?proj:p):[proj,...state.projects],modal:null});};
 window.syncPush=syncPush;
 window.syncPull=syncPull;
 window.asanaPush=asanaPush;
+window.archiveCompleted=async()=>{
+  const done=state.tasks.filter(t=>t.done);
+  if(!done.length)return;
+  if(!(isSheetsConfigured()&&ls.get('tt_authed'))){alert('Connect Google Sheets first so completed tasks are saved to your permanent Completed Log before clearing them from the active list.');return;}
+  if(!confirm(`Clear ${done.length} completed task(s) from the active list?\n\nThey stay permanently in the Completed Log tab on your Google Sheet.`))return;
+  setState({syncStatus:'syncing',syncMsg:'Saving to Completed Log…'});
+  try{
+    const merged=await pushToSheets(state.tasks,state.projects,state.parking); // appends done tasks to the log
+    applySync({tasks:merged});
+  }catch(e){setState({syncStatus:'error',syncMsg:'Could not reach Sheets — nothing was cleared.'});return;}
+  done.forEach(t=>addTombstone(t.id));
+  applySync({tasks:state.tasks.filter(t=>!t.done),syncStatus:'success',syncMsg:'Completed tasks archived to log ✓'});
+  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
+};
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{if(isSheetsConfigured())initTokenClient();});
 render();
 
 // ── Service Worker ─────────────────────────────────────────────────────────────
-if('serviceWorker' in navigator){const sw=`const C='tt-v4';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
+if('serviceWorker' in navigator){const sw=`const C='tt-v5';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
 </script>
 <script>
 const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='40' y='56' width='112' height='14' rx='7' fill='%232563EB'/%3E%3Crect x='40' y='84' width='88' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='112' width='100' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='140' width='72' height='14' rx='7' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
