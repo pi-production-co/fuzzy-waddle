@@ -10,8 +10,9 @@
 <title>Task Tracker</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:#F8FAFC;color:#111827;min-height:100vh;overscroll-behavior:none;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:#F1F5F9;color:#111827;min-height:100vh;overscroll-behavior:none;}
 button,input,textarea,select{font-family:inherit;cursor:pointer;}
+input,textarea{cursor:text;}
 #app{min-height:100vh;}
 .spin{display:inline-block;animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -26,6 +27,71 @@ button,input,textarea,select{font-family:inherit;cursor:pointer;}
 #ios-hint p{font-size:13px;line-height:1.6;margin-bottom:10px;}
 #ios-hint strong{color:#60A5FA;}
 #ios-close{background:none;border:1px solid #4B5563;color:#9CA3AF;border-radius:8px;padding:7px 14px;font-size:12px;width:100%;}
+
+/* ── Board ── */
+.wrap{max-width:720px;margin:0 auto;padding:16px 14px 80px;}
+.wrap.wide{max-width:none;padding:14px 14px 40px;}
+.toolbar{background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 12px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.toolbar input[type=search]{flex:1;min-width:140px;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;}
+.toolbar select{border:1.5px solid #E5E7EB;border-radius:8px;padding:6px 8px;font-size:12px;background:#fff;color:#374151;font-weight:600;}
+.seg{display:inline-flex;background:#F1F5F9;border-radius:8px;padding:2px;}
+.seg button{border:none;background:transparent;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:700;color:#6B7280;}
+.seg button.on{background:#fff;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+.stats{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+.stat{background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:8px 12px;min-width:84px;flex:1;}
+.stat b{display:block;font-size:20px;font-weight:800;}
+.stat span{font-size:11px;color:#6B7280;font-weight:600;}
+.nudge{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:13px;color:#1E40AF;}
+.nudge button{margin-left:auto;background:#2563EB;color:#fff;border:none;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;white-space:nowrap;}
+.board{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;scroll-snap-type:x mandatory;align-items:flex-start;}
+.col{flex:1 0 250px;min-width:250px;background:#E9EEF4;border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 230px);min-height:200px;scroll-snap-align:start;border:2px solid transparent;transition:border-color .15s,background .15s;}
+.col.over{border-color:#2563EB;background:#DBEAFE;}
+.col-head{padding:10px 12px 6px;display:flex;align-items:baseline;gap:8px;}
+.col-head h2{font-size:13px;font-weight:800;color:#1F2937;letter-spacing:.02em;text-transform:uppercase;}
+.col-head .n{font-size:11px;font-weight:800;color:#475569;background:#fff;border-radius:99px;padding:1px 8px;}
+.col-hint{font-size:11px;color:#64748B;padding:0 12px 6px;}
+.qa{padding:0 8px 8px;}
+.qa input{width:100%;border:1.5px dashed #CBD5E1;background:#F8FAFC;border-radius:8px;padding:8px 10px;font-size:13px;outline:none;}
+.qa input:focus{border-style:solid;border-color:#2563EB;background:#fff;}
+.col-body{overflow-y:auto;padding:0 8px 10px;display:flex;flex-direction:column;gap:7px;flex:1;}
+.empty{font-size:12px;color:#94A3B8;text-align:center;padding:16px 6px;font-style:italic;}
+.card{background:#fff;border-radius:9px;border:1px solid #E2E8F0;border-left:4px solid var(--cat,#94A3B8);padding:9px 10px 8px;box-shadow:0 1px 2px rgba(15,23,42,.05);cursor:grab;position:relative;}
+.card:hover{box-shadow:0 3px 8px rgba(15,23,42,.1);}
+.card.dragging{opacity:.4;}
+.card.overdue{background:#FFF7F7;}
+.card.done{opacity:.6;}
+.card-top{display:flex;gap:8px;align-items:flex-start;}
+.chk{width:18px;height:18px;border-radius:5px;border:2px solid #CBD5E1;background:#fff;flex-shrink:0;margin-top:1px;font-size:11px;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.chk.on{background:#16A34A;border-color:#16A34A;}
+.title{font-size:13.5px;font-weight:600;line-height:1.35;word-break:break-word;flex:1;}
+.card.done .title{text-decoration:line-through;color:#94A3B8;font-weight:500;}
+.meta{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px;padding-left:26px;}
+.pill{font-size:10.5px;font-weight:700;border-radius:99px;padding:1px 7px;white-space:nowrap;}
+.sub{font-size:11.5px;color:#64748B;margin-top:4px;padding-left:26px;line-height:1.4;word-break:break-word;}
+.mv{display:none;position:absolute;right:6px;bottom:6px;gap:3px;}
+.mv button{border:1px solid #E2E8F0;background:#fff;border-radius:6px;width:24px;height:22px;font-size:12px;color:#475569;line-height:1;}
+.card:hover .mv{display:flex;}
+@media (hover:none){.mv{display:flex;position:static;justify-content:flex-end;margin-top:6px;}.mv button{width:34px;height:28px;font-size:14px;}}
+/* Rows layout: each lane is a horizontal band, cards flow left → right */
+.board.rows{flex-direction:column;overflow:visible;scroll-snap-type:none;gap:10px;align-items:stretch;}
+.board.rows .col{flex:none;width:100%;min-width:0;max-height:none;min-height:0;display:grid;grid-template-columns:220px minmax(0,1fr);align-items:start;}
+.board.rows .col-side{padding-bottom:8px;}
+.board.rows .col-body{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));overflow:visible;padding:10px 10px 10px 0;align-content:start;min-height:70px;}
+.board.rows .col-body>.empty,.board.rows .col-body>.show-more{grid-column:1/-1;}
+.board.rows .empty{text-align:left;padding:14px 4px;}
+.col.collapsed .col-hint,.col.collapsed .qa{display:none;}
+.col.collapsed .col-body{display:none!important;}
+.col.collapsed{min-height:0!important;}
+.tog{border:none;background:none;color:#64748B;font-size:12px;font-weight:800;padding:0 2px;width:18px;}
+.show-more{border:none;background:none;color:#2563EB;font-size:12px;font-weight:700;padding:6px;}
+/* Drag to reorder */
+.card{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;}
+.ph{border:2px dashed #2563EB;background:rgba(37,99,235,.06);border-radius:9px;min-height:44px;}
+.col-body:has(.ph)>.empty{display:none;}
+.ghost{position:fixed;left:0;top:0;z-index:400;pointer-events:none;box-shadow:0 12px 28px rgba(15,23,42,.28)!important;opacity:.95;cursor:grabbing;}
+body.is-dragging,body.is-dragging *{cursor:grabbing!important;}
+@media (max-width:640px){.board:not(.rows) .col{flex:0 0 86vw;max-height:calc(100vh - 250px);}.board.rows .col{grid-template-columns:1fr;}.board.rows .col-body{padding:0 8px 10px;grid-template-columns:1fr;}.board.rows .col-side{padding-bottom:4px;}.stat{min-width:70px;padding:7px 10px;}.stat b{font-size:17px;}}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1F2937;color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;z-index:300;box-shadow:0 6px 20px rgba(0,0,0,.25);}
 </style>
 </head>
 <body>
@@ -40,7 +106,17 @@ button,input,textarea,select{font-family:inherit;cursor:pointer;}
   <button id="ios-close">Got it</button>
 </div>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
+// ── Storage ────────────────────────────────────────────────────────────────────
+const ls={
+  get(k){try{return localStorage.getItem(k);}catch{return null;}},
+  set(k,v){try{localStorage.setItem(k,v);}catch{}},
+  del(k){try{localStorage.removeItem(k);}catch{}},
+};
+
 // ── PWA Install ────────────────────────────────────────────────────────────────
 let deferredPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(!ls.get('pwa-dismissed'))document.getElementById('install-banner').classList.add('show');});
@@ -53,43 +129,144 @@ if(isIOS&&!isStandalone&&!ls.get('ios-hint-dismissed')){
   document.getElementById('ios-close').onclick=()=>{document.getElementById('ios-hint').classList.remove('show');ls.set('ios-hint-dismissed','1');};
 }
 
-// ── Storage ────────────────────────────────────────────────────────────────────
-const ls={
-  get(k){try{return localStorage.getItem(k);}catch{return null;}},
-  set(k,v){try{localStorage.setItem(k,v);}catch{}},
-  del(k){try{localStorage.removeItem(k);}catch{}},
-};
+// ── Dates (local time, not UTC) ────────────────────────────────────────────────
+function localDateStr(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function parseLocal(s){const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function addDays(s,n){const d=parseLocal(s);d.setDate(d.getDate()+n);return localDateStr(d);}
+function addMonths(s,n){const d=parseLocal(s);d.setMonth(d.getMonth()+n);return localDateStr(d);}
+const todayStr=localDateStr();
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const CATEGORIES=["Service Calendar","Subcontractor","Large Project","Materials/Orders","Customer Follow-up","PM Check-in","Admin"];
+const CATEGORIES=["Service Calendar","Subcontractor","Large Project","Materials/Orders","Customer Follow-up","PM Check-in","Admin","Marketing"];
 const PRIORITIES=["High","Medium","Low"];
 const STATUSES=["Not Started","In Progress","Waiting","Blocked","Complete"];
 const PM_HEALTH=["On Track","At Risk","Delayed","On Hold","Complete"];
-const CAT_COLORS={"Service Calendar":{bg:"#DBEAFE",text:"#1D4ED8",dot:"#3B82F6"},"Subcontractor":{bg:"#F3E8FF",text:"#7E22CE",dot:"#A855F7"},"Large Project":{bg:"#FFEDD5",text:"#C2410C",dot:"#F97316"},"Materials/Orders":{bg:"#DCFCE7",text:"#15803D",dot:"#22C55E"},"Customer Follow-up":{bg:"#FEF9C3",text:"#A16207",dot:"#EAB308"},"PM Check-in":{bg:"#FCE7F3",text:"#BE185D",dot:"#EC4899"},"Admin":{bg:"#F1F5F9",text:"#475569",dot:"#94A3B8"}};
+const LANES=[
+  {id:'backlog',label:'Backlog',hint:'Put it down and leave it here'},
+  {id:'week',label:'This Week',hint:'Getting done this week'},
+  {id:'today',label:'Today',hint:'What you’re working on today'},
+  {id:'waiting',label:'Waiting',hint:'Waiting on a sub, supplier, customer or PM'},
+  {id:'done',label:'Done',hint:''},
+];
+const LANE_IDS=LANES.map(l=>l.id);
+const laneLabel=id=>(LANES.find(l=>l.id===id)||{}).label||id;
+const REPEATS=[{id:'none',label:'Does not repeat'},{id:'daily',label:'Every day'},{id:'weekdays',label:'Every weekday'},{id:'weekly',label:'Every week'},{id:'monthly',label:'Every month'}];
+const REPEAT_IDS=REPEATS.map(r=>r.id);
+const CAT_COLORS={"Service Calendar":{bg:"#DBEAFE",text:"#1D4ED8",dot:"#3B82F6"},"Subcontractor":{bg:"#F3E8FF",text:"#7E22CE",dot:"#A855F7"},"Large Project":{bg:"#FFEDD5",text:"#C2410C",dot:"#F97316"},"Materials/Orders":{bg:"#DCFCE7",text:"#15803D",dot:"#22C55E"},"Customer Follow-up":{bg:"#FEF9C3",text:"#A16207",dot:"#EAB308"},"PM Check-in":{bg:"#FCE7F3",text:"#BE185D",dot:"#EC4899"},"Admin":{bg:"#F1F5F9",text:"#475569",dot:"#94A3B8"},"Marketing":{bg:"#CCFBF1",text:"#0F766E",dot:"#14B8A6"}};
 const PRI_COLORS={High:{bg:"#FEE2E2",text:"#B91C1C"},Medium:{bg:"#FEF9C3",text:"#A16207"},Low:{bg:"#DCFCE7",text:"#15803D"}};
 const STATUS_COLORS={"Not Started":{bg:"#F1F5F9",text:"#475569"},"In Progress":{bg:"#DBEAFE",text:"#1D4ED8"},"Waiting":{bg:"#FEF9C3",text:"#A16207"},"Blocked":{bg:"#FEE2E2",text:"#B91C1C"},"Complete":{bg:"#DCFCE7",text:"#15803D"}};
 const HEALTH_COLORS={"On Track":{bg:"#DCFCE7",text:"#15803D",icon:"🟢"},"At Risk":{bg:"#FEF9C3",text:"#A16207",icon:"🟡"},"Delayed":{bg:"#FEE2E2",text:"#B91C1C",icon:"🔴"},"On Hold":{bg:"#F1F5F9",text:"#475569",icon:"⏸"},"Complete":{bg:"#DCFCE7",text:"#15803D",icon:"✅"}};
-const ASANA_PRI={High:"high",Medium:"medium",Low:"low"};
 const ASANA_API="https://app.asana.com/api/1.0";
-const todayStr=new Date().toISOString().split('T')[0];
 const SCOPES='https://www.googleapis.com/auth/spreadsheets';
 const AUTOPUSH_DELAY=8000;
+const TASK_RANGE="'Daily Tasks'!A5:N500";
 
 const SAMPLE_TASKS=[
-  {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: HVAC quote",job:"Thompson / HVA-2241",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false,asanaGid:null},
-  {id:2,category:"Materials/Orders",description:"Confirm delivery date for Job #3847",job:"Brennan Project",priority:"High",dueDate:todayStr,status:"Not Started",notes:"Order placed 6/9 — supplier est. 6/13",done:false,asanaGid:null},
-  {id:3,category:"Customer Follow-up",description:"Send booking confirmation to Garcia",job:"Garcia / PLB-1190",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"New booking entered in HCP this morning",done:false,asanaGid:null},
-  {id:4,category:"PM Check-in",description:"Get status update from Marcus (Project A)",job:"Commercial Bldg A",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Project week 3 — should be on schedule",done:false,asanaGid:null},
-  {id:5,category:"Subcontractor",description:"Confirm crew availability for Friday",job:"Metro Sub Team",priority:"Medium",dueDate:todayStr,status:"Not Started",notes:"Need 4 crew — confirm by EOD",done:false,asanaGid:null},
-  {id:6,category:"Large Project",description:"Review change order for Project Delta",job:"Delta / COM-0042",priority:"Low",dueDate:todayStr,status:"Waiting",notes:"Awaiting revised scope from PM",done:false,asanaGid:null},
+  {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: quote",job:"Thompson",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false,lane:'today'},
+  {id:2,category:"Materials/Orders",description:"Confirm delivery date for Job #3847",job:"Brennan Project",priority:"High",dueDate:todayStr,status:"Not Started",notes:"",done:false,lane:'today'},
+  {id:3,category:"PM Check-in",description:"Weekly check-in with PMs",job:"",priority:"Medium",dueDate:addDays(todayStr,2),status:"Not Started",notes:"",done:false,lane:'week',repeat:'weekly'},
+  {id:4,category:"Large Project",description:"Review change order for Project Delta",job:"Delta / COM-0042",priority:"Low",dueDate:"",status:"Waiting",notes:"Awaiting revised scope from PM",done:false,lane:'waiting'},
+  {id:5,category:"Marketing",description:"Pull next neighborhood target list",job:"",priority:"Low",dueDate:"",status:"Not Started",notes:"",done:false,lane:'backlog'},
 ];
-const SAMPLE_PROJECTS=[
-  {id:1,name:"Commercial Bldg A",pm:"Marcus R.",jobNum:"COM-0041",startDate:"2026-05-28",targetEnd:"2026-07-11",pctComplete:65,health:"On Track",blockers:"",lastCheckin:todayStr},
-  {id:2,name:"Delta Project",pm:"Sarah K.",jobNum:"COM-0042",startDate:"2026-06-04",targetEnd:"2026-08-10",pctComplete:20,health:"At Risk",blockers:"Change order pending approval",lastCheckin:todayStr},
-];
-const SAMPLE_PARKING=[
-  {id:1,time:"9:14 AM",wasWorkingOn:"Writing booking confirmation for Garcia",interruption:"Phone call — supplier re: delayed order",nextStep:"Finish Garcia email then call supplier back",priority:"High",cleared:false},
-];
+const SAMPLE_PROJECTS=[];
+const SAMPLE_PARKING=[];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function uid(){return 't'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function isOverdue(due,status){return !!due&&status!=='Complete'&&due<todayStr;}
+function daysLeft(d){if(!d)return null;return Math.round((parseLocal(d)-parseLocal(todayStr))/86400000);}
+function nowTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
+function fmtShort(d){if(!d)return'';const n=daysLeft(d);if(n===0)return'Today';if(n===1)return'Tomorrow';if(n===-1)return'Yesterday';const dt=parseLocal(d);const wd=dt.toLocaleDateString('en-US',{weekday:'short'});return(n>1&&n<7)?wd:`${wd} ${dt.getMonth()+1}/${dt.getDate()}`;}
+function badge(label,colors,size='sm'){const p=size==='sm'?'2px 8px':'3px 10px';const fs=size==='sm'?'11px':'12px';return`<span style="background:${colors.bg};color:${colors.text};border-radius:99px;padding:${p};font-size:${fs};font-weight:600;white-space:nowrap;display:inline-block;">${esc(label)}</span>`;}
+function fi(label,name,val='',type='text',ph=''){const s='width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;';const inp=type==='textarea'?`<textarea name="${name}" rows="2" placeholder="${esc(ph)}" style="${s}resize:vertical;">${esc(val)}</textarea>`:`<input type="${type}" name="${name}" value="${esc(val)}" placeholder="${esc(ph)}" style="${s}">`;return`<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${label}</label>${inp}</div>`;}
+function sel(name,opts,val){return`<select name="${name}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;outline:none;">${opts.map(o=>{const v=typeof o==='string'?o:o.id;const l=typeof o==='string'?o:o.label;return`<option value="${esc(v)}"${v===val?' selected':''}>${esc(l)}</option>`;}).join('')}</select>`;}
+function lbl(t){return`<label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${t}</label>`;}
+function modal(content){return`<div onclick="handleModalBg(event)" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;"><div id="modal-sheet" onclick="event.stopPropagation()" style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 18px 36px;">${content}</div></div>`;}
+
+// ── Lanes: keep board column, status and done flag consistent ──────────────────
+function laneForDue(d){if(!d)return'backlog';if(d<=todayStr)return'today';if(d<=addDays(todayStr,6))return'week';return'backlog';}
+function deriveLane(t){
+  if(t.done||t.status==='Complete')return'done';
+  if(t.status==='Waiting'||t.status==='Blocked')return'waiting';
+  if(t.status==='In Progress')return'today';
+  return laneForDue(t.dueDate);
+}
+function normalizeTask(src){
+  const t={...src};
+  if(!CATEGORIES.includes(t.category))t.category=t.category||'Admin';
+  if(!PRIORITIES.includes(t.priority))t.priority='Medium';
+  if(!STATUSES.includes(t.status))t.status='Not Started';
+  if(!REPEAT_IDS.includes(t.repeat))t.repeat='none';
+  if(!LANE_IDS.includes(t.lane))t.lane=deriveLane(t);
+  if(t.done||t.status==='Complete'){t.done=true;t.status='Complete';t.lane='done';t.completedAt=t.completedAt||todayStr;}
+  else if(t.lane==='done'){t.lane=deriveLane({...t,lane:undefined});}
+  if(t.lane!=='done'){t.done=false;t.completedAt=null;}
+  if(t.asanaGid===undefined)t.asanaGid=null;
+  return t;
+}
+function normalizeAll(arr){return assignOrders((arr||[]).map(normalizeTask));}
+// ── Manual card order within a lane ────────────────────────────────────────────
+const PRI_ORD={High:0,Medium:1,Low:2};
+function autoSort(arr){
+  return arr.slice().sort((a,b)=>{
+    const oa=isOverdue(a.dueDate,a.status)?0:1,ob=isOverdue(b.dueDate,b.status)?0:1;if(oa!==ob)return oa-ob;
+    const p=(PRI_ORD[a.priority]??1)-(PRI_ORD[b.priority]??1);if(p)return p;
+    const da=a.dueDate||'9999',db=b.dueDate||'9999';if(da!==db)return da<db?-1:1;
+    return String(a.description).localeCompare(String(b.description));
+  });
+}
+const hasOrder=t=>typeof t.order==='number'&&isFinite(t.order);
+// Cards without a saved position (older cards, cards added in the Sheet) get one, in the old auto-sort order
+function assignOrders(tasks){
+  const byLane={};tasks.forEach(t=>{(byLane[t.lane]=byLane[t.lane]||[]).push(t);});
+  Object.values(byLane).forEach(arr=>{
+    const missing=arr.filter(t=>!hasOrder(t));if(!missing.length)return;
+    let max=Math.max(0,...arr.filter(hasOrder).map(t=>t.order));
+    autoSort(missing).forEach(t=>{max+=1000;t.order=max;});
+  });
+  return tasks;
+}
+function laneTasks(lane,excludeId){return state.tasks.filter(t=>t.lane===lane&&String(t.id)!==String(excludeId));}
+function topOrder(lane,excludeId){const o=laneTasks(lane,excludeId).filter(hasOrder).map(t=>t.order);return o.length?Math.min(...o)-1000:1000;}
+function renumberLane(lane){laneTasks(lane).sort((a,b)=>a.order-b.order).forEach((t,i)=>{t.order=(i+1)*1000;});}
+// Order value for dropping card `id` at position `index` of the lane as currently shown (respects filters)
+function orderAt(lane,id,index){
+  if(lane==='done'||index==null)return topOrder(lane,id);
+  const calc=()=>{
+    const list=sortLane(lane,laneTasks(lane,id).filter(matches));
+    const before=list[index-1],after=list[index];
+    if(!before&&!after)return{v:topOrder(lane,id)};
+    if(!before)return{v:after.order-1000};
+    if(!after)return{v:before.order+1000};
+    return{v:(before.order+after.order)/2,gap:after.order-before.order};
+  };
+  let r=calc();
+  if(r.gap!==undefined&&r.gap<0.001){renumberLane(lane);r=calc();}
+  return r.v;
+}
+function applyLane(t,lane){
+  const u={...t,lane};
+  if(lane==='done'){u.done=true;u.status='Complete';u.completedAt=t.completedAt||todayStr;return u;}
+  if(t.done){u.done=false;u.completedAt=null;u.status='Not Started';}
+  if(lane==='waiting'){if(u.status!=='Waiting'&&u.status!=='Blocked')u.status='Waiting';}
+  else if(u.status==='Waiting'||u.status==='Blocked')u.status='Not Started';
+  return u;
+}
+// Repeating cards: when one is finished, the next one is created automatically
+function nextDue(base,rep){
+  if(!REPEAT_IDS.includes(rep)||rep==='none')return null;
+  const step=x=>{if(rep==='daily')return addDays(x,1);if(rep==='weekly')return addDays(x,7);if(rep==='monthly')return addMonths(x,1);let y=addDays(x,1);while([0,6].includes(parseLocal(y).getDay()))y=addDays(y,1);return y;};
+  let n=base||todayStr,guard=0;
+  do{n=step(n);guard++;}while(n<=todayStr&&guard<1000);
+  return n;
+}
+function spawnRepeat(t){
+  if(!t.repeat||t.repeat==='none'||t.spawnedNext)return null;
+  const due=nextDue(t.dueDate,t.repeat);if(!due)return null;
+  return normalizeTask({id:uid(),category:t.category,description:t.description,job:t.job,priority:t.priority,dueDate:due,status:'Not Started',notes:t.notes,done:false,repeat:t.repeat,lane:laneForDue(due),asanaGid:null});
+}
 
 // ── Google OAuth ───────────────────────────────────────────────────────────────
 let tokenClient=null,accessToken=null,tokenExpiry=0;
@@ -109,8 +286,8 @@ function initTokenClient(){
       tokenExpiry=Date.now()+(resp.expires_in-60)*1000;
       ls.set('tt_authed','1');
       setState({syncStatus:'syncing',syncMsg:'Signed in — syncing…'});
-      pushToSheets(state.tasks,state.projects,state.parking).then(()=>{
-        setState({syncStatus:'success',syncMsg:'Synced to Google Sheets ✓'});
+      pushToSheets(state.tasks,state.projects,state.parking).then(merged=>{
+        applySync({tasks:merged,syncStatus:'success',syncMsg:'Synced to Google Sheets ✓'});
         setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
       }).catch(e=>setState({syncStatus:'error',syncMsg:'Sync failed: '+e.message}));
     },
@@ -139,29 +316,53 @@ async function sheetsReq(method,path,body){
   return method==='POST'&&path.includes('clear')?{}:res.json();
 }
 
-function fmtDate(d){if(!d)return'';const[y,m,day]=d.split('-');return`${m}/${day}/${y}`;}
-function parseSheetDate(v){if(!v)return'';const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
-function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'',String(t.id||'')]);}
-function rowsToTasks(rows){return rows.filter(r=>r[2]&&r[2].trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done:r[9]==='✅'||r[7]==='Complete',completedAt:(r[9]==='✅'||r[7]==='Complete')?parseSheetDate(r[6])||todayStr:null,asanaGid:null};});}
+function parseSheetDate(v){if(!v)return'';const m=String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
+// Columns A–K are unchanged from v7. L = Board Column, M = Repeats (new in v8).
+function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'',String(t.id||''),laneLabel(t.lane),t.repeat&&t.repeat!=='none'?t.repeat:'',hasOrder(t)?Math.round(t.order*1000)/1000:'']);}
+function laneFromLabel(v){const s=String(v||'').trim().toLowerCase();const l=LANES.find(x=>x.label.toLowerCase()===s||x.id===s);return l?l.id:'';}
+function rowsToTasks(rows){return rows.filter(r=>r[2]&&String(r[2]).trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();const done=r[9]==='✅'||r[7]==='Complete';return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done,completedAt:done?parseSheetDate(r[6])||todayStr:null,asanaGid:null,lane:laneFromLabel(r[11]),repeat:String(r[12]||'').trim().toLowerCase(),order:sheetNum(r[13])};});}
+function sheetNum(v){if(v===undefined||v===null||String(v).trim()==='')return undefined;const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:undefined;}
 function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
 function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
 function parkingToRows(p){return p.map(p=>[p.time||'',p.wasWorkingOn||'',p.interruption||'',p.nextStep||'',p.priority||'Medium',p.cleared?'✅ Cleared':'⏳ Pending']);}
 function rowsToParking(rows){return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=>({id:Date.now()+i,time:r[0]||'',wasWorkingOn:r[1]||'',interruption:r[2]||'',nextStep:r[3]||'',priority:r[4]||'Medium',cleared:r[5]==='✅ Cleared'}));}
 
+async function ensureTaskHeaders(){
+  if(ls.get('tt_hdr_v9'))return;
+  try{
+    const r=await sheetsReq('GET',`/values/'Daily Tasks'!L4:N4`);
+    const v=(r.values&&r.values[0])||[];
+    const ours=(x,h)=>!x||x===h;
+    if(ours(v[0],'Board Column')&&ours(v[1],'Repeats')&&ours(v[2],'Order'))await sheetsReq('PUT',`/values/'Daily Tasks'!L4?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!L4",majorDimension:'ROWS',values:[['Board Column','Repeats','Order']]});
+    ls.set('tt_hdr_v9','1');
+  }catch(e){}
+}
+
 async function pushToSheets(tasks,projects,parking){
-  // Read current sheet tasks so direct-in-sheet additions are preserved (merge, not overwrite)
-  let sheetTasks=[];
-  try{const tR=await sheetsReq('GET',`/values/'Daily Tasks'!A5:K500`);sheetTasks=rowsToTasks(tR.values||[]);}catch(e){}
-  sheetTasks=reconcileIds(tasks,sheetTasks);
-  const merged=mergeForPush(tasks,sheetTasks);
-  await sheetsReq('POST',`/values/'Daily Tasks'!A5:K500:clear`);
+  // Cloud mode: the Sheet is a one-way copy of the cloud data (no merging back)
+  const oneWay=cloudOn();
+  let merged;
+  if(oneWay){merged=tasks;}
+  else{
+    // Read current sheet tasks so direct-in-sheet additions are preserved (merge, not overwrite)
+    let sheetTasks=[];
+    try{const tR=await sheetsReq('GET',`/values/${TASK_RANGE}`);sheetTasks=rowsToTasks(tR.values||[]);}catch(e){}
+    sheetTasks=reconcileIds(tasks,sheetTasks);
+    merged=normalizeAll(mergeForPush(tasks,sheetTasks));
+  }
+  await sheetsReq('POST',`/values/${TASK_RANGE}:clear`);
   if(merged.length)await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(merged)});
+  await ensureTaskHeaders();
   await sheetsReq('POST',`/values/'PM Status'!A7:K50:clear`);
   if(projects.length)await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
   await sheetsReq('POST',`/values/'Parking Lot'!A8:F50:clear`);
   if(parking.length)await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
   // Append completed tasks to the permanent, append-only Completed Log (never cleared)
-  try{await appendCompletedLog(merged);}catch(e){}
+  try{
+    let forLog=merged;
+    if(oneWay){const m=new Map();(await cloudCompletedLog()).forEach(t=>m.set(String(t.id),t));merged.forEach(t=>m.set(String(t.id),t));forLog=[...m.values()];}
+    await appendCompletedLog(forLog);
+  }catch(e){}
   return merged;
 }
 
@@ -189,10 +390,14 @@ function mergeForPush(appTasks,sheetTasks){
   sheetTasks.forEach(s=>{const id=String(s.id);if(!appIdx.has(id)&&!tomb.has(id))out.push(s);});
   return out;
 }
-// Pull: sheet wins on conflict; app-only (unpushed) tasks kept
+// Pull: sheet wins on conflict, but app-only fields (Asana link, repeat bookkeeping) are kept
 function mergeForPull(appTasks,sheetTasks){
-  const tomb=tombstonedIds();const shIdx=indexById(sheetTasks);const out=[];
-  sheetTasks.forEach(s=>{if(!tomb.has(String(s.id)))out.push(s);});
+  const tomb=tombstonedIds();const shIdx=indexById(sheetTasks);const appIdx=indexById(appTasks);const out=[];
+  sheetTasks.forEach(s=>{
+    const id=String(s.id);if(tomb.has(id))return;
+    const a=appIdx.get(id);
+    out.push(a?{...a,...s,lane:s.lane||a.lane,repeat:s.repeat||a.repeat,order:hasOrder(s)?s.order:a.order,asanaGid:a.asanaGid||null}:s);
+  });
   appTasks.forEach(t=>{const id=String(t.id);if(!shIdx.has(id)&&!tomb.has(id))out.push(t);});
   return out;
 }
@@ -223,9 +428,9 @@ async function appendCompletedLog(tasks){
 }
 
 async function pullFromSheets(appTasks){
-  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/'Daily Tasks'!A5:K500`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
+  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/${TASK_RANGE}`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
   let sheetTasks=reconcileIds(appTasks||[],rowsToTasks(tR.values||[]));
-  const mergedTasks=mergeForPull(appTasks||[],sheetTasks);
+  const mergedTasks=normalizeAll(mergeForPull(appTasks||[],sheetTasks));
   return{tasks:mergedTasks,projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
 }
 
@@ -245,61 +450,158 @@ async function asanaReq(method,path,body){
   if(!res.ok){const e=await res.json();throw new Error(e.errors?.[0]?.message||'Asana API error');}
   return res.json();
 }
-
-// Map app task → Asana task fields
 function taskToAsana(task){
-  const notes=[task.notes,task.job?`Job/Customer: ${task.job}`:'',`Category: ${task.category}`].filter(Boolean).join('\n');
-  const obj={
-    name:task.description,
-    notes,
-    completed:task.done||task.status==='Complete',
-    projects:[getAsanaProject()],
-  };
-  if(task.dueDate) obj.due_on=task.dueDate;
+  const notes=[task.notes,task.job?`Job/Customer: ${task.job}`:'',`Category: ${task.category}`,`Board: ${laneLabel(task.lane)}`].filter(Boolean).join('\n');
+  const obj={name:task.description,notes,completed:task.done||task.status==='Complete',projects:[getAsanaProject()]};
+  if(task.dueDate)obj.due_on=task.dueDate;
   return obj;
 }
-
-// Push all tasks to Asana — create new ones, update existing ones
 async function pushToAsana(tasks){
   const project=getAsanaProject();
   if(!project)throw new Error('No Asana project configured');
-
   const updatedTasks=[];
   for(const task of tasks){
     const asanaData=taskToAsana(task);
     try{
       if(task.asanaGid){
-        // Update existing Asana task
-        await asanaReq('PUT',`/tasks/${task.asanaGid}`,{
-          name:asanaData.name,
-          notes:asanaData.notes,
-          completed:asanaData.completed,
-          due_on:asanaData.due_on||null,
-        });
+        await asanaReq('PUT',`/tasks/${task.asanaGid}`,{name:asanaData.name,notes:asanaData.notes,completed:asanaData.completed,due_on:asanaData.due_on||null});
         updatedTasks.push({...task});
-      } else {
-        // Create new Asana task
+      }else{
         const res=await asanaReq('POST','/tasks',asanaData);
         updatedTasks.push({...task,asanaGid:res.data?.gid||null});
       }
-    } catch(e){
-      // If task GID is stale (deleted in Asana), create fresh
+    }catch(e){
       if(task.asanaGid&&e.message.includes('Not Found')){
         const res=await asanaReq('POST','/tasks',asanaData);
         updatedTasks.push({...task,asanaGid:res.data?.gid||null});
-      } else {
-        updatedTasks.push({...task});
-      }
+      }else updatedTasks.push({...task});
     }
   }
   return updatedTasks;
 }
-
-// Test Asana connection by fetching the project
 async function testAsanaConnection(){
   const res=await asanaReq('GET',`/projects/${getAsanaProject()}?opt_fields=name`);
   return res.data?.name||'Connected';
 }
+
+// ── Cloud storage (Firebase) ───────────────────────────────────────────────────
+// Each card, project and parking item is its own document under users/{your uid}/…
+// Changes save instantly, show up live on your other devices, and queue up while offline.
+const firebaseConfig={
+  apiKey:"AIzaSyAkbU7vVDw60sIbH3W4PouHO2fJnjNh5Eo",
+  authDomain:"task-tracker-5e754.firebaseapp.com",
+  projectId:"task-tracker-5e754",
+  storageBucket:"task-tracker-5e754.firebasestorage.app",
+  messagingSenderId:"527879955446",
+  appId:"1:527879955446:web:b1db1b5f6eb920fb60ddd7",
+};
+const COLLS=['tasks','projects','parking'];
+const cloud={available:false,auth:null,db:null,user:null,base:null,ready:false,loaded:{},unsubs:[],synced:{tasks:new Map(),projects:new Map(),parking:new Map()},logged:new Set(),pending:0,online:navigator.onLine,error:''};
+function cloudOn(){return !!(cloud.user&&cloud.ready);}
+function stableStr(v){if(v===null||typeof v!=='object')return JSON.stringify(v);if(Array.isArray(v))return'['+v.map(stableStr).join(',')+']';return'{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableStr(v[k])).join(',')+'}';}
+function cleanDoc(x){const o=JSON.parse(JSON.stringify(x));o.id=String(x.id);return o;} // Firestore can't store undefined
+function collRef(c){return cloud.base.collection(c);}
+async function commitOps(ops){
+  // Firestore batches max out at 500 writes; chunk to be safe
+  for(let i=0;i<ops.length;i+=400){
+    const b=cloud.db.batch();
+    ops.slice(i,i+400).forEach(([kind,ref,data])=>kind==='set'?b.set(ref,data):b.delete(ref));
+    cloud.pending++;renderSoon();
+    try{await b.commit();cloud.error='';}
+    catch(e){cloud.error=e.message||String(e);console.warn('Cloud save failed',e);}
+    finally{cloud.pending--;renderSoon();}
+  }
+}
+function logEntry(t){return{id:String(t.id),description:t.description||'',category:t.category||'',job:t.job||'',priority:t.priority||'',notes:t.notes||'',completedAt:t.completedAt||todayStr,done:true,status:'Complete'};}
+// Compare current state to what the cloud last had and write only the differences
+function cloudWrite(){
+  if(!cloudOn())return;
+  const ops=[];
+  COLLS.forEach(c=>{
+    const cur=new Map(state[c].map(x=>{const d=cleanDoc(x);return[d.id,d];}));
+    const prev=cloud.synced[c];
+    const next=new Map();
+    cur.forEach((d,id)=>{const s=stableStr(d);next.set(id,s);if(prev.get(id)!==s)ops.push(['set',collRef(c).doc(id),d]);});
+    prev.forEach((_,id)=>{if(!cur.has(id))ops.push(['delete',collRef(c).doc(id)]);});
+    cloud.synced[c]=next;
+  });
+  state.tasks.forEach(t=>{const id=String(t.id);if(t.done&&!cloud.logged.has(id)){cloud.logged.add(id);ops.push(['set',collRef('completedLog').doc(id),logEntry(t)]);}});
+  if(ops.length)commitOps(ops);
+}
+async function cloudCompletedLog(){if(!cloudOn())return[];try{const s=await collRef('completedLog').get();return s.docs.map(d=>d.data());}catch{return[];}}
+const byIdDesc=(a,b)=>{const na=Number(a.id),nb=Number(b.id);return(isFinite(nb)&&isFinite(na))?nb-na:String(b.id).localeCompare(String(a.id));};
+function applyRemote(c,snap){
+  let items=snap.docs.map(d=>d.data());
+  cloud.synced[c]=new Map(items.map(x=>[String(x.id),stableStr(cleanDoc(x))]));
+  if(c==='tasks')items=normalizeAll(items);else items.sort(byIdDesc);
+  state[c]=items;
+  cloud.loaded[c]=true;
+  if(!cloud.ready&&COLLS.every(k=>cloud.loaded[k])){cloud.ready=true;}
+  persist();
+  if(cloud.ready)cloudWrite(); // pushes anything normalization changed (e.g. card positions)
+  renderSoon(true);
+}
+async function linkDevice(user){
+  // First time this browser connects: upload its cards that aren't in the cloud yet
+  const key='tt_fb_linked_'+user.uid;
+  if(ls.get(key))return;
+  const snaps=await Promise.all(COLLS.map(c=>collRef(c).get()));
+  const ops=[];let n=0;
+  COLLS.forEach((c,i)=>{
+    const have=new Set(snaps[i].docs.map(d=>d.id));
+    (state[c]||[]).filter(x=>!x.sample).forEach(x=>{const d=cleanDoc(c==='tasks'?normalizeTask(x):x);if(!have.has(d.id)){ops.push(['set',collRef(c).doc(d.id),d]);if(c==='tasks')n++;}});
+  });
+  state.tasks.filter(t=>t.done&&!t.sample).forEach(t=>ops.push(['set',collRef('completedLog').doc(String(t.id)),logEntry(t)]));
+  if(ops.length)await commitOps(ops);
+  ls.set(key,'1');
+  if(n)toast(`☁ Uploaded ${n} card${n!==1?'s':''} from this device to the cloud`);
+}
+async function onSignedIn(user){
+  cloud.user=user;cloud.base=cloud.db.collection('users').doc(user.uid);
+  cloud.ready=false;cloud.loaded={};cloud.error='';
+  renderSoon();
+  try{await linkDevice(user);}catch(e){console.warn('Initial upload skipped',e);cloud.error='Could not reach the cloud for the first upload — will retry next time.';}
+  try{const s=await collRef('completedLog').get();s.docs.forEach(d=>cloud.logged.add(d.id));}catch{}
+  cloud.unsubs=COLLS.map(c=>collRef(c).onSnapshot(snap=>applyRemote(c,snap),err=>{cloud.error=err.message;renderSoon();}));
+}
+function onSignedOut(){
+  cloud.unsubs.forEach(u=>{try{u();}catch{}});cloud.unsubs=[];
+  cloud.user=null;cloud.base=null;cloud.ready=false;cloud.loaded={};
+  COLLS.forEach(c=>cloud.synced[c]=new Map());cloud.logged=new Set();
+  renderSoon();
+}
+function initCloud(){
+  if(!window.firebase){cloud.error='Cloud library did not load (offline?). Working locally for now.';return;}
+  try{
+    firebase.initializeApp(firebaseConfig);
+    cloud.auth=firebase.auth();cloud.db=firebase.firestore();
+    cloud.db.enablePersistence({synchronizeTabs:true}).catch(()=>{}); // offline cache
+    cloud.available=true;
+    cloud.auth.getRedirectResult().catch(e=>{cloud.error=e.message;renderSoon();});
+    cloud.auth.onAuthStateChanged(u=>u?onSignedIn(u):onSignedOut());
+  }catch(e){cloud.error=e.message;console.warn(e);}
+}
+window.cloudSignIn=async()=>{
+  if(!cloud.available){toast('Cloud isn’t available right now — check your connection.');return;}
+  const provider=new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({prompt:'select_account'});
+  try{await cloud.auth.signInWithPopup(provider);}
+  catch(e){
+    if(['auth/popup-blocked','auth/operation-not-supported-in-this-environment','auth/cancelled-popup-request','auth/web-storage-unsupported'].includes(e.code)){try{await cloud.auth.signInWithRedirect(provider);}catch(e2){toast('Sign-in failed: '+e2.message);}}
+    else if(e.code!=='auth/popup-closed-by-user')toast('Sign-in failed: '+(e.message||e.code));
+  }
+};
+window.cloudSignOut=async()=>{if(!confirm('Sign out of cloud sync on this device?\n\nYour cards stay safe in the cloud; this device keeps a local copy.'))return;try{await cloud.auth.signOut();}catch{}};
+window.downloadBackup=async()=>{
+  const data={exportedAt:new Date().toISOString(),tasks:state.tasks,projects:state.projects,parking:state.parking,completedLog:await cloudCompletedLog()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`task-tracker-backup-${todayStr}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+};
+window.addEventListener('online',()=>{cloud.online=true;renderSoon();});
+window.addEventListener('offline',()=>{cloud.online=false;renderSoon();});
+let renderSoonTimer=null,renderSoonRemote=false;
+// Batches status re-renders; skips while a form is open so typing isn't wiped
+function renderSoon(remote){if(remote)renderSoonRemote=true;clearTimeout(renderSoonTimer);renderSoonTimer=setTimeout(()=>{const r=renderSoonRemote;renderSoonRemote=false;if(state.modal||state.showSettings&&r){renderPending=true;return;}render();},30);}
 
 // ── Auto-push ──────────────────────────────────────────────────────────────────
 let autoPushTimer=null;
@@ -315,43 +617,51 @@ function scheduleAutoPush(){
     }catch(e){setState({syncStatus:null,syncMsg:''});}
   },AUTOPUSH_DELAY);
 }
-// Apply sync results (saves + renders) WITHOUT scheduling another auto-push, avoiding loops
-function applySync(updates){
-  Object.assign(state,updates);
+function persist(){
   ls.set('tt_tasks',JSON.stringify(state.tasks));
   ls.set('tt_projects',JSON.stringify(state.projects));
   ls.set('tt_parking',JSON.stringify(state.parking));
+}
+// Apply sync results (saves + renders) WITHOUT scheduling another auto-push, avoiding loops
+function applySync(updates){
+  if(updates.tasks)updates.tasks=normalizeAll(updates.tasks);
+  Object.assign(state,updates);
+  persist();
+  if(updates.tasks||updates.projects||updates.parking)cloudWrite();
   render();
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
+function loadJSON(k,fallback){try{return JSON.parse(ls.get(k)||'null')||fallback;}catch{return fallback;}}
 let state={
-  tab:'tasks',view:'board',
-  tasks:    JSON.parse(ls.get('tt_tasks')||'null')||SAMPLE_TASKS,
-  projects: JSON.parse(ls.get('tt_projects')||'null')||SAMPLE_PROJECTS,
-  parking:  JSON.parse(ls.get('tt_parking')||'null')||SAMPLE_PARKING,
-  modal:null,filterCat:'All',filterStatus:'All',search:'',pmShowCompleted:{},
+  tab:'tasks',
+  layout:ls.get('tt_layout')||'rows',
+  collapsed:loadJSON('tt_collapsed',{}),
+  focus:ls.get('tt_focus')||'all',
+  tasks:normalizeAll(loadJSON('tt_tasks',SAMPLE_TASKS.map(t=>({...t,sample:true})))),
+  projects:loadJSON('tt_projects',SAMPLE_PROJECTS),
+  parking:loadJSON('tt_parking',SAMPLE_PARKING),
+  modal:null,filterCat:'All',search:'',pmShowCompleted:{},doneShowAll:false,
   syncStatus:null,syncMsg:'',
   asanaSyncStatus:null,asanaSyncMsg:'',
-  showSettings:false,settingsTab:'sheets',
-  saveTimer:null,
+  showSettings:false,settingsTab:'cloud',
+  toast:'',refocus:null,
 };
-
-function localSave(){
-  clearTimeout(state.saveTimer);
-  state.saveTimer=setTimeout(()=>{
-    ls.set('tt_tasks',JSON.stringify(state.tasks));
-    ls.set('tt_projects',JSON.stringify(state.projects));
-    ls.set('tt_parking',JSON.stringify(state.parking));
-  },300);
-}
-
+let saveTimer=null;
+function localSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{saveTimer=null;persist();},300);}
+// Save immediately if the app is closed or backgrounded right after a change
+function flushSave(){if(saveTimer){clearTimeout(saveTimer);saveTimer=null;persist();}}
+window.addEventListener('pagehide',flushSave);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushSave();});
 function setState(updates){
   const dataChanged=updates.tasks||updates.projects||updates.parking;
+  if(updates.tasks)assignOrders(updates.tasks);
   Object.assign(state,updates);
-  if(dataChanged){localSave();scheduleAutoPush();}
+  if(dataChanged){localSave();cloudWrite();scheduleAutoPush();}
   render();
 }
+let toastTimer=null;
+function toast(msg){state.toast=msg;render();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{state.toast='';render();},3200);}
 
 // ── Manual sync actions ────────────────────────────────────────────────────────
 async function syncPush(){
@@ -364,7 +674,6 @@ async function syncPush(){
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Push failed: '+e.message});}
 }
-
 async function syncPull(){
   if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
   setState({syncStatus:'syncing',syncMsg:'Pulling from Google Sheets…'});
@@ -374,7 +683,6 @@ async function syncPull(){
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
 }
-
 async function asanaPush(){
   if(!isAsanaConfigured()){setState({showSettings:true,settingsTab:'asana'});return;}
   setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Pushing to Asana…'});
@@ -385,24 +693,33 @@ async function asanaPush(){
   }catch(e){setState({asanaSyncStatus:'error',asanaSyncMsg:'Asana sync failed: '+e.message});}
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function isOverdue(due,status){return due&&status!=='Complete'&&due<todayStr;}
-function daysLeft(d){if(!d)return null;return Math.round((new Date(d)-new Date(todayStr))/86400000);}
-function nowTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
-function badge(label,colors,size='sm'){const p=size==='sm'?'2px 8px':'3px 10px';const fs=size==='sm'?'11px':'12px';return`<span style="background:${colors.bg};color:${colors.text};border-radius:99px;padding:${p};font-size:${fs};font-weight:600;white-space:nowrap;display:inline-block;">${label}</span>`;}
-function chip(label,active,onclick,color='#2563EB'){return`<button onclick="${onclick}" style="padding:5px 11px;border-radius:99px;font-size:12px;font-weight:600;border:${active?'none':'1.5px solid #E5E7EB'};background:${active?color:'#fff'};color:${active?'#fff':'#374151'};">${label}</button>`;}
-function fi(label,name,val='',type='text'){const s='width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;';const inp=type==='textarea'?`<textarea name="${name}" rows="2" style="${s}resize:vertical;">${val}</textarea>`:`<input type="${type}" name="${name}" value="${String(val).replace(/"/g,'&quot;')}" style="${s}">`;return`<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${label}</label>${inp}</div>`;}
-function sel(name,opts,val){return`<select name="${name}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;outline:none;">${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${o}</option>`).join('')}</select>`;}
-function modal(content){return`<div onclick="handleModalBg(event)" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:100;display:flex;align-items:flex-end;justify-content:center;"><div id="modal-sheet" onclick="event.stopPropagation()" style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding:20px 18px 36px;">${content}</div></div>`;}
-
-// ── Render ─────────────────────────────────────────────────────────────────────
-function render(){document.getElementById('app').innerHTML=buildApp();}
+// ── Render (keeps scroll position and focus between re-renders) ────────────────
+let renderPending=false;
+function render(){
+  if(drag&&drag.active){renderPending=true;return;} // don't rebuild the board mid-drag
+  renderPending=false;
+  const app=document.getElementById('app');
+  const board=app.querySelector('.board');
+  const boardScroll=board?board.scrollLeft:0;
+  const colScroll={};app.querySelectorAll('.col-body').forEach(el=>colScroll[el.dataset.lane]=el.scrollTop);
+  const ae=document.activeElement;const aeId=ae&&ae.id&&app.contains(ae)?ae.id:null;
+  const caret=aeId&&ae.selectionStart!=null?ae.selectionStart:null;
+  const winY=window.scrollY;
+  app.innerHTML=buildApp();
+  const nb=app.querySelector('.board');if(nb)nb.scrollLeft=boardScroll;
+  app.querySelectorAll('.col-body').forEach(el=>{if(colScroll[el.dataset.lane]!=null)el.scrollTop=colScroll[el.dataset.lane];});
+  const fid=state.refocus||aeId;state.refocus=null;
+  if(fid){const el=document.getElementById(fid);if(el){el.focus({preventScroll:true});if(caret!=null&&fid===aeId&&el.setSelectionRange)try{el.setSelectionRange(caret,caret);}catch{}}}
+  window.scrollTo(0,winY);
+}
 
 function buildApp(){
   if(state.showSettings)return buildSettingsPage();
   const openParking=state.parking.filter(k=>!k.cleared);
-  const counts={total:state.tasks.length,done:state.tasks.filter(t=>t.done).length,over:state.tasks.filter(t=>isOverdue(t.dueDate,t.status)).length,today:state.tasks.filter(t=>t.dueDate===todayStr&&!t.done).length};
-  return`<div style="padding-bottom:env(safe-area-inset-bottom);">${buildHeader(counts,openParking.length)}<div style="max-width:720px;margin:0 auto;padding:16px 14px 80px;">${buildSyncBar()}${state.tab==='tasks'?buildTasksTab(counts):''}${state.tab==='parking'?buildParkingTab(openParking):''}${state.tab==='pm'?buildPMTab():''}</div>${state.modal?buildModal():''}</div>`;
+  const open=state.tasks.filter(t=>!t.done);
+  const counts={today:open.filter(t=>t.lane==='today').length,week:open.filter(t=>t.lane==='week').length,waiting:open.filter(t=>t.lane==='waiting').length,backlog:open.filter(t=>t.lane==='backlog').length,over:open.filter(t=>isOverdue(t.dueDate,t.status)).length};
+  const wide=state.tab==='tasks';
+  return`<div style="padding-bottom:env(safe-area-inset-bottom);">${buildHeader(counts,openParking.length)}<div class="wrap${wide?' wide':''}">${buildSyncBar()}${state.tab==='tasks'?buildBoardTab(counts):''}${state.tab==='parking'?buildParkingTab(openParking):''}${state.tab==='pm'?buildPMTab():''}</div>${state.modal?buildModal():''}${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}</div>`;
 }
 
 // ── Sync bar ───────────────────────────────────────────────────────────────────
@@ -414,35 +731,67 @@ function buildSyncBar(){
   const aColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.asanaSyncStatus]||'#374151';
   const aBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.asanaSyncStatus]||'transparent';
   const spin=s=>s==='syncing'?`<span class="spin">⟳</span> `:'';
-
-  let sheetsLabel=state.syncStatus
-    ?`<span style="font-size:12px;font-weight:600;color:${sColor};background:${sBg};padding:3px 9px;border-radius:99px;">${spin(state.syncStatus)}${state.syncMsg}</span>`
-    :sheetsOk
-      ?`<span style="font-size:11px;color:#15803D;">✓ Sheets · auto-saves</span>`
-      :`<span style="font-size:11px;color:#9CA3AF;">Sheets: not connected</span>`;
-
-  let asanaLabel=state.asanaSyncStatus
-    ?`<span style="font-size:12px;font-weight:600;color:${aColor};background:${aBg};padding:3px 9px;border-radius:99px;">${spin(state.asanaSyncStatus)}${state.asanaSyncMsg}</span>`
-    :asanaOk
-      ?`<span style="font-size:11px;color:#F97316;">✓ Asana connected</span>`
-      :`<span style="font-size:11px;color:#9CA3AF;">Asana: not connected</span>`;
-
-  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:10px 14px;margin-bottom:14px;">
+  const sheetsLabel=state.syncStatus?`<span style="font-size:12px;font-weight:600;color:${sColor};background:${sBg};padding:3px 9px;border-radius:99px;">${spin(state.syncStatus)}${esc(state.syncMsg)}</span>`:sheetsOk?`<span style="font-size:11px;color:#15803D;">✓ Sheets · auto-saves</span>`:`<span style="font-size:11px;color:#9CA3AF;">Sheets: not connected</span>`;
+  const asanaLabel=state.asanaSyncStatus?`<span style="font-size:12px;font-weight:600;color:${aColor};background:${aBg};padding:3px 9px;border-radius:99px;">${spin(state.asanaSyncStatus)}${esc(state.asanaSyncMsg)}</span>`:asanaOk?`<span style="font-size:11px;color:#F97316;">✓ Asana connected</span>`:`<span style="font-size:11px;color:#9CA3AF;">Asana: not connected</span>`;
+  const cl=cloudStatus();
+  const cloudLabel=`<span style="font-size:12px;font-weight:700;color:${cl.color};background:${cl.bg};padding:3px 9px;border-radius:99px;" title="${esc(cloud.error||'')}">${cl.label}</span>`;
+  const cOn=!!cloud.user;
+  const sheetsBtn=(isSheetsConfigured()||!cOn)?`<button onclick="syncPush()" style="background:${cOn?'#fff':'#2563EB'};color:${cOn?'#374151':'#fff'};border:${cOn?'1.5px solid #D1D5DB':'none'};border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Sheets</button>`:'';
+  const pullBtn=cOn?'':`<button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button>`;
+  const signInBtn=cOn||!cloud.available?'':`<button onclick="cloudSignIn()" style="background:#16A34A;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;">☁ Sign in to sync</button>`;
+  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:8px 12px;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:100px;">${sheetsLabel}${asanaLabel}</div>
+      <div style="display:flex;gap:10px;flex:1;min-width:120px;flex-wrap:wrap;align-items:center;">${cloudLabel}${(cOn&&!isSheetsConfigured()&&!state.syncStatus)?'':sheetsLabel}${asanaLabel}</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
-        <button onclick="syncPush()" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Sheets</button>
-        <button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button>
-        <button onclick="asanaPush()" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;"${state.asanaSyncStatus==='syncing'?' disabled':''}>↑ Asana</button>
-        <button onclick="setState({showSettings:true})" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 10px;font-size:13px;">⚙</button>
+        ${signInBtn}${sheetsBtn}${pullBtn}
+        <button onclick="asanaPush()" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.asanaSyncStatus==='syncing'?' disabled':''}>↑ Asana</button>
+        <button onclick="setState({showSettings:true})" aria-label="Settings" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:6px 10px;font-size:13px;">⚙</button>
       </div>
     </div>
   </div>`;
 }
 
+function cloudStatus(){
+  if(!cloud.available)return{label:'☁ Local only',color:'#6B7280',bg:'#F3F4F6'};
+  if(!cloud.user)return{label:'☁ Not signed in — saved on this device only',color:'#A16207',bg:'#FEF9C3'};
+  if(!cloud.ready)return{label:'☁ Connecting…',color:'#1D4ED8',bg:'#DBEAFE'};
+  if(cloud.error)return{label:'☁ Sync problem — tap ⚙',color:'#B91C1C',bg:'#FEE2E2'};
+  if(!cloud.online)return{label:'☁ Offline — changes will sync',color:'#A16207',bg:'#FEF9C3'};
+  if(cloud.pending)return{label:'☁ Saving…',color:'#1D4ED8',bg:'#DBEAFE'};
+  return{label:'☁ Synced',color:'#15803D',bg:'#DCFCE7'};
+}
+function buildCloudSettings(){
+  const st=cloudStatus();
+  const u=cloud.user;
+  return`
+  <div style="background:${st.bg};border:1px solid ${st.color}30;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="font-size:14px;font-weight:700;color:${st.color};">${st.label}</div>
+    <div style="font-size:12px;color:${st.color};opacity:.85;margin-top:3px;">${u?`Signed in as ${esc(u.email||'')}`:'Sign in with the Google account you set Firebase up with.'}</div>
+    ${cloud.error?`<div style="font-size:12px;color:#B91C1C;margin-top:6px;">${esc(cloud.error)}</div>`:''}
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    ${u?`<button onclick="cloudSignOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out on this device</button>`
+      :`<button onclick="cloudSignIn()" ${cloud.available?'':'disabled'} style="width:100%;background:#16A34A;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">☁ Sign in with Google</button>`}
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How cloud sync works</div>
+    <div style="font-size:13px;color:#374151;line-height:1.75;">
+      <div style="margin-bottom:5px;"><strong>Instant saves</strong> — every change saves on its own, right away. No sync buttons.</div>
+      <div style="margin-bottom:5px;"><strong>Every device</strong> — sign in on your phone and computer; changes show up on both within seconds.</div>
+      <div style="margin-bottom:5px;"><strong>Offline</strong> — keep working without signal; changes upload when you’re back online.</div>
+      <div><strong>Google Sheet</strong> — optional now. If connected, it gets a one-way copy for reporting, plus the Completed Log.</div>
+    </div>
+  </div>
+  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
+    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Backup</div>
+    <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Download everything (cards, projects, parking lot, completed log) as a file.</div>
+    <button onclick="downloadBackup()" style="width:100%;background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">⬇ Download backup</button>
+  </div>`;
+}
+
 // ── Settings page ──────────────────────────────────────────────────────────────
 function buildSettingsPage(){
-  const tabs=[{id:'sheets',label:'Google Sheets'},{id:'asana',label:'Asana'}];
+  const tabs=[{id:'cloud',label:'Cloud'},{id:'sheets',label:'Google Sheets'},{id:'asana',label:'Asana'}];
   return`
 <div style="background:#1F2937;padding:14px 16px;position:sticky;top:0;z-index:50;">
   <div style="max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px;">
@@ -454,10 +803,9 @@ function buildSettingsPage(){
   </div>
 </div>
 <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
-  ${state.settingsTab==='sheets'?buildSheetsSettings():buildAsanaSettings()}
-</div>`;
+  ${state.settingsTab==='cloud'?buildCloudSettings():state.settingsTab==='sheets'?buildSheetsSettings():buildAsanaSettings()}
+</div>${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}`;
 }
-
 function buildSheetsSettings(){
   const configured=isSheetsConfigured();
   const authed=!!ls.get('tt_authed');
@@ -470,14 +818,8 @@ function buildSheetsSettings(){
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Credentials</div>
     <form onsubmit="saveSheetsSettings(event)">
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">OAuth Client ID</label>
-        <input id="cfg-clientid" type="password" value="${getClientId()}" placeholder="Paste your OAuth Client ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Spreadsheet ID</label>
-        <input id="cfg-sheetid" type="password" value="${getSheetId()}" placeholder="Paste your Google Sheet ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-      </div>
+      <div style="margin-bottom:14px;">${lbl('OAuth Client ID')}<input id="cfg-clientid" type="password" value="${esc(getClientId())}" placeholder="Paste your OAuth Client ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"></div>
+      <div style="margin-bottom:16px;">${lbl('Spreadsheet ID')}<input id="cfg-sheetid" type="password" value="${esc(getSheetId())}" placeholder="Paste your Google Sheet ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"></div>
       <button type="submit" style="width:100%;background:#1F2937;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save Credentials</button>
     </form>
   </div>
@@ -485,26 +827,21 @@ function buildSheetsSettings(){
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Google Account</div>
     <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Authorizes read and write access to your Google Sheet.</div>
-    ${authed
-      ?`<button onclick="signOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out of Google</button>`
-      :`<button onclick="signIn()" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Sign in with Google →</button>`
-    }
+    ${authed?`<button onclick="signOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out of Google</button>`:`<button onclick="signIn()" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Sign in with Google →</button>`}
   </div>`:''}
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Sheets sync works</div>
     <div style="font-size:13px;color:#374151;line-height:1.75;">
       <div style="margin-bottom:5px;"><strong>🔄 Auto-push</strong> — Syncs 8 seconds after any change. Runs silently.</div>
       <div style="margin-bottom:5px;"><strong>↑ Sheets</strong> — Manual immediate push to Google Sheets.</div>
-      <div><strong>↓ Pull</strong> — Load sheet edits back into the app.</div>
+      <div style="margin-bottom:5px;"><strong>↓ Pull</strong> — Load sheet edits back into the app.</div>
+      <div><strong>🗂 Board columns</strong> — On the Daily Tasks tab, column L holds each card’s board column, M its repeat setting, and N its position in the lane (so your order matches on every device). Columns A–K are unchanged.</div>
     </div>
   </div>
   ${configured?`<button onclick="clearSheetsConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Google credentials</button>`:''}`;
 }
-
 function buildAsanaSettings(){
   const configured=isAsanaConfigured();
-  const asanaPat=getAsanaPAT();
-  const asanaProject=getAsanaProject();
   return`
   <div style="background:${configured?'#FFF7ED':'#FEF9C3'};border:1px solid ${configured?'#FED7AA':'#FDE68A'};border-radius:12px;padding:14px 16px;margin-bottom:16px;">
     <div style="font-size:14px;font-weight:700;color:${configured?'#C2410C':'#A16207'};">${configured?'✓ Asana connected':'⚠ Asana not configured'}</div>
@@ -513,16 +850,8 @@ function buildAsanaSettings(){
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Asana Credentials</div>
     <form onsubmit="saveAsanaSettings(event)">
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Personal Access Token</label>
-        <input id="cfg-asana-pat" type="password" value="${asanaPat}" placeholder="Paste your Asana PAT" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Asana → My Settings → Apps → Personal access tokens</div>
-      </div>
-      <div style="margin-bottom:16px;">
-        <label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Project GID</label>
-        <input id="cfg-asana-project" type="password" value="${asanaProject}" placeholder="Paste your Asana Project GID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;">
-        <div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Asana project URL: app.asana.com/0/<strong>THIS_NUMBER</strong>/list</div>
-      </div>
+      <div style="margin-bottom:14px;">${lbl('Personal Access Token')}<input id="cfg-asana-pat" type="password" value="${esc(getAsanaPAT())}" placeholder="Paste your Asana PAT" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"><div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Asana → My Settings → Apps → Personal access tokens</div></div>
+      <div style="margin-bottom:16px;">${lbl('Project GID')}<input id="cfg-asana-project" type="password" value="${esc(getAsanaProject())}" placeholder="Paste your Asana Project GID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"><div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Asana project URL: app.asana.com/0/<strong>THIS_NUMBER</strong>/list</div></div>
       <button type="submit" style="width:100%;background:#F97316;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save & Test Asana Connection</button>
     </form>
   </div>
@@ -530,8 +859,8 @@ function buildAsanaSettings(){
     <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Asana sync works</div>
     <div style="font-size:13px;color:#374151;line-height:1.75;">
       <div style="margin-bottom:5px;"><strong>↑ Asana</strong> — Pushes all tasks to your Asana project. New tasks are created; existing ones are updated.</div>
-      <div style="margin-bottom:5px;"><strong>Smart tracking</strong> — Each task remembers its Asana ID, so subsequent pushes update rather than duplicate.</div>
-      <div style="margin-bottom:5px;"><strong>What syncs:</strong> Task name, notes, job/customer info, category, due date, and completion status.</div>
+      <div style="margin-bottom:5px;"><strong>Smart tracking</strong> — Each task remembers its Asana ID, so later pushes update rather than duplicate.</div>
+      <div style="margin-bottom:5px;"><strong>What syncs:</strong> Task name, notes, job/customer, category, board column, due date, and completion status.</div>
       <div style="font-size:12px;color:#9CA3AF;margin-top:6px;">Asana sync is one-way (app → Asana). Changes made directly in Asana won't come back to the app.</div>
     </div>
   </div>
@@ -543,128 +872,374 @@ window.saveSheetsSettings=function(e){
   e.preventDefault();
   const clientId=document.getElementById('cfg-clientid').value.trim();
   const sheetId=document.getElementById('cfg-sheetid').value.trim();
-  if(!clientId||!sheetId){alert('Please fill in both fields.');return;}
+  if(!clientId||!sheetId){toast('Please fill in both fields.');return;}
   ls.set('tt_clientid',clientId);ls.set('tt_sheetid',sheetId);
   tokenClient=null;
   setState({showSettings:true,settingsTab:'sheets',syncStatus:'success',syncMsg:'Credentials saved ✓'});
   setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
   initTokenClient();
 };
-
 window.saveAsanaSettings=async function(e){
   e.preventDefault();
   const pat=document.getElementById('cfg-asana-pat').value.trim();
   const project=document.getElementById('cfg-asana-project').value.trim();
-  if(!pat||!project){alert('Please fill in both fields.');return;}
+  if(!pat||!project){toast('Please fill in both fields.');return;}
   ls.set('tt_asana_pat',pat);ls.set('tt_asana_project',project);
   setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Testing Asana connection…',showSettings:true,settingsTab:'asana'});
-  try{
-    const name=await testAsanaConnection();
-    setState({asanaSyncStatus:'success',asanaSyncMsg:`Connected to "${name}" ✓`});
-    setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),3500);
-  }catch(ex){
-    setState({asanaSyncStatus:'error',asanaSyncMsg:'Connection failed: '+ex.message});
-  }
+  try{const name=await testAsanaConnection();setState({asanaSyncStatus:'success',asanaSyncMsg:`Connected to "${name}" ✓`});setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),3500);}
+  catch(ex){setState({asanaSyncStatus:'error',asanaSyncMsg:'Connection failed: '+ex.message});}
 };
-
-window.signIn=function(){initTokenClient();if(!tokenClient){alert('Please save your Client ID first.');return;}tokenClient.requestAccessToken({prompt:'consent'});};
-window.signOut=function(){if(accessToken)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;ls.del('tt_authed');setState({showSettings:true,settingsTab:'sheets',syncStatus:null,syncMsg:''});};
+window.signIn=function(){initTokenClient();if(!tokenClient){toast('Please save your Client ID first.');return;}tokenClient.requestAccessToken({prompt:'consent'});};
+window.signOut=function(){if(accessToken&&window.google)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;ls.del('tt_authed');setState({showSettings:true,settingsTab:'sheets',syncStatus:null,syncMsg:''});};
 window.clearSheetsConfig=function(){if(!confirm('Remove Google credentials?'))return;window.signOut();ls.del('tt_clientid');ls.del('tt_sheetid');setState({showSettings:true,settingsTab:'sheets'});};
 window.clearAsanaConfig=function(){if(!confirm('Remove Asana credentials?'))return;ls.del('tt_asana_pat');ls.del('tt_asana_project');setState({showSettings:true,settingsTab:'asana'});};
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 function buildHeader(counts,parkCount){
-  const tabs=[{id:'tasks',label:'Tasks',badge:counts.today||0,color:'#2563EB'},{id:'parking',label:'Parking',badge:parkCount||0,color:'#F97316'},{id:'pm',label:'Projects',badge:0,color:'#7E22CE'}];
-  const addBtns={tasks:`<button onclick="openModal('addTask')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Task</button>`,parking:`<button onclick="openModal('addPark')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openModal('addProject')" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
-  return`<div style="background:#1F2937;position:sticky;top:0;z-index:50;"><div style="max-width:720px;margin:0 auto;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Task Tracker</div><div style="font-size:11px;color:#9CA3AF;">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div></div>${addBtns[state.tab]||''}</div><div style="max-width:720px;margin:0 auto;padding:8px 14px 0;display:flex;gap:2px;">${tabs.map(t=>`<button onclick="setTab('${t.id}')" style="flex:1;padding:9px 4px;background:${state.tab===t.id?'#fff':'transparent'};color:${state.tab===t.id?t.color:'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;">${t.label}${t.badge>0?`<span style="background:${t.color};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 6px;">${t.badge}</span>`:''}</button>`).join('')}</div></div>`;
+  const tabs=[{id:'tasks',label:'Board',badge:counts.today,color:'#2563EB'},{id:'parking',label:'Parking',badge:parkCount,color:'#F97316'},{id:'pm',label:'Projects',badge:0,color:'#7E22CE'}];
+  const addBtns={tasks:`<button onclick="openTask(null,'backlog')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Card</button>`,parking:`<button onclick="openModalType('park')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openProject(null)" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
+  const mw=state.tab==='tasks'?'none':'720px';
+  return`<div style="background:#1F2937;position:sticky;top:0;z-index:50;"><div style="max-width:${mw};margin:0 auto;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Task Tracker</div><div style="font-size:11px;color:#9CA3AF;">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div></div>${addBtns[state.tab]||''}</div><div style="max-width:${state.tab==='tasks'?'720px':mw};margin:0 ${state.tab==='tasks'?'0':'auto'};padding:8px 14px 0;display:flex;gap:2px;">${tabs.map(t=>`<button onclick="setTab('${t.id}')" style="flex:1;padding:9px 4px;background:${state.tab===t.id?(t.id==='tasks'?'#F1F5F9':'#fff'):'transparent'};color:${state.tab===t.id?t.color:'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;">${t.label}${t.badge>0?`<span style="background:${t.color};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 6px;">${t.badge}</span>`:''}</button>`).join('')}</div></div>`;
 }
 
-// ── Tasks Tab ──────────────────────────────────────────────────────────────────
-function buildTasksTab(counts){
-  const filtered=state.tasks.filter(t=>{if(state.filterCat!=='All'&&t.category!==state.filterCat)return false;if(state.filterStatus!=='All'&&t.status!==state.filterStatus)return false;if(state.search&&!`${t.description} ${t.job} ${t.notes}`.toLowerCase().includes(state.search.toLowerCase()))return false;return true;}).sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return{High:0,Medium:1,Low:2}[a.priority]-{High:0,Medium:1,Low:2}[b.priority];});
-  const statCards=[['Total',counts.total,'#1F2937'],['Today',counts.today,'#2563EB'],['Overdue',counts.over,counts.over>0?'#DC2626':'#15803D'],['Done',counts.done,'#15803D']].map(([l,v,c])=>`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:10px 12px;flex:1;"><div style="font-size:22px;font-weight:800;color:${c};">${v}</div><div style="font-size:11px;color:#6B7280;font-weight:500;">${l}</div></div>`).join('');
-  const catGroups=CATEGORIES.map(cat=>({cat,tasks:filtered.filter(t=>t.category===cat)})).filter(g=>g.tasks.length>0);
-  const boardHTML=catGroups.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No tasks match.</div>`:catGroups.map(({cat,tasks:ct})=>{const cc=CAT_COLORS[cat]||{bg:'#F1F5F9',text:'#374151',dot:'#94A3B8'};return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="background:${cc.bg};padding:9px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid ${cc.dot}25;"><div style="display:flex;align-items:center;gap:7px;"><span style="width:8px;height:8px;border-radius:50%;background:${cc.dot};display:inline-block;"></span><span style="font-size:13px;font-weight:700;color:${cc.text};">${cat}</span></div><span style="font-size:11px;font-weight:700;color:${cc.text};background:${cc.dot}25;border-radius:99px;padding:2px 8px;">${ct.filter(t=>!t.done).length} open</span></div>${ct.map((t,i)=>taskRow(t,i===ct.length-1,false)).join('')}</div>`;}).join('');
-  const listHTML=filtered.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;">No tasks match.</div>`:`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;">${filtered.map((t,i)=>taskRow(t,i===filtered.length-1,true)).join('')}</div>`;
-  return`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${statCards}</div>${counts.done>0?`<div style="display:flex;justify-content:flex-end;margin-bottom:12px;"><button onclick="archiveCompleted()" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:8px;padding:6px 12px;font-size:12px;color:#6B7280;font-weight:600;">Clear ${counts.done} completed from active list →</button></div>`:''}<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px;margin-bottom:14px;"><div style="display:flex;gap:8px;margin-bottom:10px;"><input value="${state.search.replace(/"/g,'&quot;')}" oninput="setSearch(this.value)" placeholder="Search…" style="flex:1;border:1.5px solid #E5E7EB;border-radius:8px;padding:7px 10px;font-size:13px;outline:none;">${chip('Board',state.view==='board',"setView('board')",'#374151')}${chip('List',state.view==='list',"setView('list')",'#374151')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">CAT</span>${chip('All',state.filterCat==='All',"setFilter('cat','All')")}${CATEGORIES.map(c=>chip(c,state.filterCat===c,`setFilter('cat','${c}')`,CAT_COLORS[c]?.dot||'#2563EB')).join('')}</div><div style="display:flex;gap:5px;flex-wrap:wrap;"><span style="font-size:11px;color:#9CA3AF;font-weight:600;align-self:center;">STATUS</span>${['All',...STATUSES].map(s=>chip(s,state.filterStatus===s,`setFilter('status','${s}')`)).join('')}</div></div>${state.view==='board'?boardHTML:listHTML}`;
+// ── Board Tab ──────────────────────────────────────────────────────────────────
+function matches(t){
+  if(state.focus==='ops'&&t.category==='Marketing')return false;
+  if(state.focus==='marketing'&&t.category!=='Marketing')return false;
+  if(state.filterCat!=='All'&&t.category!==state.filterCat)return false;
+  if(state.search&&!`${t.description} ${t.job} ${t.notes}`.toLowerCase().includes(state.search.toLowerCase()))return false;
+  return true;
+}
+// Your order (drag to rearrange). Done is always newest-first.
+function sortLane(lane,arr){
+  if(lane==='done')return arr.slice().sort((a,b)=>String(b.completedAt||'').localeCompare(String(a.completedAt||''))||((b.order||0)-(a.order||0)));
+  return arr.slice().sort((a,b)=>(a.order??0)-(b.order??0));
+}
+function buildBoardTab(counts){
+  const openAll=state.tasks.filter(t=>!t.done&&(t.lane==='today'||t.lane==='week'));
+  const mk=openAll.filter(t=>t.category==='Marketing').length;const ops=openAll.length-mk;
+  const stats=[['Today',counts.today,'#2563EB'],['This Week',counts.week,'#1F2937'],['Waiting',counts.waiting,'#A16207'],['Overdue',counts.over,counts.over>0?'#DC2626':'#15803D'],['Ops · Mktg',`${ops}<span style="color:#CBD5E1;font-weight:600;"> · </span><span style="color:#0F766E;">${mk}</span>`,'#1F2937']].map(([l,v,c])=>`<div class="stat"><b style="color:${c};">${v}</b><span>${l}</span></div>`).join('');
+  const dueNow=state.tasks.filter(t=>!t.done&&(t.lane==='backlog'||t.lane==='week')&&t.dueDate&&t.dueDate<=todayStr);
+  const nudge=dueNow.length?`<div class="nudge">📌 ${dueNow.length} card${dueNow.length>1?'s are':' is'} due today or overdue but still in Backlog / This Week.<button onclick="pullDueIntoToday()">Move to Today</button></div>`:'';
+  const focusSeg=`<div class="seg">${[['all','All'],['ops','Ops'],['marketing','Marketing']].map(([id,l])=>`<button class="${state.focus===id?'on':''}" onclick="setFocus('${id}')">${l}</button>`).join('')}</div>`;
+  const viewSeg=`<div class="seg" title="Board layout">${[['rows','☰ Rows'],['columns','▥ Columns']].map(([id,l])=>`<button class="${state.layout===id?'on':''}" onclick="setLayout('${id}')">${l}</button>`).join('')}</div>`;
+  const catSel=`<select onchange="setFilterCat(this.value)" aria-label="Category"><option value="All">All categories</option>${CATEGORIES.map(c=>`<option value="${esc(c)}"${state.filterCat===c?' selected':''}>${esc(c)}</option>`).join('')}</select>`;
+  const toolbar=`<div class="toolbar"><input id="search" type="search" value="${esc(state.search)}" oninput="setSearch(this.value)" placeholder="Search cards…">${focusSeg}${catSel}${viewSeg}</div>`;
+  const cols=LANES.map(l=>buildColumn(l)).join('');
+  return`<div class="stats">${stats}</div>${nudge}${toolbar}<div class="board${state.layout==='rows'?' rows':''}">${cols}</div>`;
+}
+function buildColumn(l){
+  const all=state.tasks.filter(t=>t.lane===l.id);
+  let items=sortLane(l.id,all.filter(matches));
+  let more='';
+  if(l.id==='done'){
+    const cap=15;
+    if(!state.doneShowAll&&items.length>cap){more=`<button class="show-more" onclick="setState({doneShowAll:true})">Show all ${items.length}</button>`;items=items.slice(0,cap);}
+  }
+  const qa=l.id==='done'?'':`<form class="qa" onsubmit="quickAdd(event,'${l.id}')"><input id="qa-${l.id}" name="q" autocomplete="off" placeholder="+ Add a card"></form>`;
+  const clearBtn=l.id==='done'&&all.length?`<button onclick="archiveCompleted()" style="margin-left:auto;border:none;background:none;color:#64748B;font-size:11px;font-weight:700;">Clear →</button>`:'';
+  const collapsed=!!state.collapsed[l.id];
+  const tog=`<button class="tog" onclick="toggleLane('${l.id}')" aria-label="${collapsed?'Expand':'Collapse'} ${l.label}" title="${collapsed?'Expand':'Collapse'}">${collapsed?'▸':'▾'}</button>`;
+  return`<section class="col${collapsed?' collapsed':''}" data-lane="${l.id}">
+    <div class="col-side">
+      <div class="col-head">${tog}<h2>${l.label}</h2><span class="n">${all.length}</span>${clearBtn}</div>
+      ${l.hint?`<div class="col-hint">${l.hint}</div>`:''}
+      ${qa}
+    </div>
+    <div class="col-body" data-lane="${l.id}">${items.length?items.map(cardHTML).join(''):`<div class="empty">${all.length?'No cards match your filters':'Nothing here — drag a card in'}</div>`}${more}</div>
+  </section>`;
+}
+function cardHTML(t){
+  const id=esc(String(t.id));
+  const cc=CAT_COLORS[t.category]||{bg:'#F1F5F9',text:'#475569',dot:'#94A3B8'};
+  const over=isOverdue(t.dueDate,t.status);
+  const i=LANE_IDS.indexOf(t.lane);
+  const prev=i>0?LANES[i-1]:null,next=i<LANES.length-1?LANES[i+1]:null;
+  const pri=t.priority==='High'?`<span class="pill" style="background:${PRI_COLORS.High.bg};color:${PRI_COLORS.High.text};">High</span>`:t.priority==='Low'?`<span class="pill" style="background:#F1F5F9;color:#64748B;">Low</span>`:'';
+  const due=t.dueDate&&!t.done?`<span class="pill" style="background:${over?'#FEE2E2':'#F1F5F9'};color:${over?'#B91C1C':'#475569'};">${over?'Overdue · ':''}${esc(fmtShort(t.dueDate))}</span>`:'';
+  const blocked=t.status==='Blocked'?`<span class="pill" style="background:#FEE2E2;color:#B91C1C;">Blocked</span>`:t.status==='In Progress'&&t.lane!=='today'?`<span class="pill" style="background:#DBEAFE;color:#1D4ED8;">In progress</span>`:'';
+  const rep=t.repeat&&t.repeat!=='none'?`<span class="pill" title="${esc((REPEATS.find(r=>r.id===t.repeat)||{}).label)}" style="background:#EEF2FF;color:#4338CA;">↻ ${esc(t.repeat)}</span>`:'';
+  const asana=t.asanaGid?`<span title="Synced to Asana" style="font-size:10px;color:#F97316;">●</span>`:'';
+  const sub=[t.job?`<span style="font-weight:600;color:#475569;">${esc(t.job)}</span>`:'',(t.lane==='waiting'||t.lane==='today')&&t.notes?esc(t.notes.length>90?t.notes.slice(0,90)+'…':t.notes):''].filter(Boolean).join(' · ');
+  const rows=state.layout==='rows';const back=rows?'↑':'‹',fwd=rows?'↓':'›';
+  return`<div class="card${over?' overdue':''}${t.done?' done':''}" style="--cat:${cc.dot};" data-id="${id}" onclick="openTask('${id}')">
+    <div class="card-top"><button class="chk${t.done?' on':''}" aria-label="${t.done?'Mark not done':'Mark done'}" onclick="event.stopPropagation();toggleDone('${id}')">${t.done?'✓':''}</button><div class="title">${esc(t.description)}</div></div>
+    <div class="meta"><span class="pill" style="background:${cc.bg};color:${cc.text};">${esc(t.category)}</span>${pri}${due}${blocked}${rep}${asana}</div>
+    ${sub?`<div class="sub">${sub}</div>`:''}
+    <div class="mv">${prev?`<button title="Move to ${prev.label}" onclick="event.stopPropagation();moveTask('${id}','${prev.id}')">${back}</button>`:''}${next?`<button title="Move to ${next.label}" onclick="event.stopPropagation();moveTask('${id}','${next.id}')">${fwd}</button>`:''}</div>
+  </div>`;
 }
 
-function taskRow(task,last,showCat){
-  const over=isOverdue(task.dueDate,task.status);
-  const cc=CAT_COLORS[task.category]||{bg:'#F1F5F9',text:'#374151'};
-  const pc=PRI_COLORS[task.priority]||PRI_COLORS.Medium;
-  const sc=STATUS_COLORS[task.status]||STATUS_COLORS['Not Started'];
-  const asanaDot=task.asanaGid?`<span title="Synced to Asana" style="font-size:10px;color:#F97316;">●</span>`:'';
-  return`<div style="padding:11px 12px;border-bottom:${last?'none':'1px solid #F3F4F6'};display:flex;gap:10px;align-items:flex-start;background:${task.done?'#FAFAFA':over?'#FFF5F5':'#fff'};opacity:${task.done?'0.6':'1'};"><button onclick="toggleTask(${task.id})" style="width:22px;height:22px;border-radius:6px;flex-shrink:0;margin-top:1px;border:${task.done?'none':'2px solid #D1D5DB'};background:${task.done?'#16A34A':'transparent'};display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;font-weight:700;">${task.done?'✓':''}</button><div style="flex:1;min-width:0;"><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:3px;"><span style="font-size:14px;font-weight:${task.done?400:600};color:${task.done?'#9CA3AF':'#111827'};text-decoration:${task.done?'line-through':'none'};word-break:break-word;">${task.description}</span>${asanaDot}${over&&!task.done?`<span style="font-size:11px;font-weight:700;color:#DC2626;background:#FEE2E2;border-radius:99px;padding:1px 7px;">Overdue</span>`:''}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${showCat?badge(task.category,{bg:cc.bg,text:cc.text}):''}${badge(task.priority,pc)}${badge(task.status,sc)}${task.job?`<span style="font-size:11px;color:#6B7280;">· ${task.job}</span>`:''}${task.dueDate?`<span style="font-size:11px;color:${over?'#DC2626':'#6B7280'};">· ${fmtDate(task.dueDate)}</span>`:''}</div>${task.notes?`<div style="font-size:12px;color:#6B7280;margin-top:4px;line-height:1.5;">${task.notes}</div>`:''}</div><div style="display:flex;gap:3px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(task).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 8px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteTask(${task.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div>`;
+// ── Drag and drop ──────────────────────────────────────────────────────────────
+// Works with mouse (press and drag) and touch (press and hold ~¼ sec, then drag).
+let drag=null,suppressClick=false;
+function cardsIn(body){return[...body.querySelectorAll(':scope > .card')].filter(c=>c!==drag.card);}
+function placePh(body,x,y){
+  const lane=body.dataset.lane;
+  if(lane==='done'){body.insertBefore(drag.ph,body.firstChild);return;}
+  const cards=cardsIn(body);
+  let target=null;
+  for(const c of cards){
+    const r=c.getBoundingClientRect();
+    const single=r.width>body.clientWidth*0.6; // one card per line → compare vertically only
+    const before=single?(y<r.top+r.height/2):(y<r.top||(y<=r.bottom&&x<r.left+r.width/2));
+    if(before){target=c;break;}
+  }
+  if(target){if(drag.ph.nextSibling!==target)body.insertBefore(drag.ph,target);}
+  else{const tail=body.querySelector(':scope > .show-more');if(tail)body.insertBefore(drag.ph,tail);else if(body.lastChild!==drag.ph)body.appendChild(drag.ph);}
 }
+function activateDrag(x,y){
+  if(!drag)return;
+  drag.active=true;
+  const r=drag.card.getBoundingClientRect();
+  drag.offX=x-r.left;drag.offY=y-r.top;
+  const g=drag.card.cloneNode(true);g.classList.add('ghost');g.style.width=r.width+'px';g.removeAttribute('onclick');document.body.appendChild(g);drag.ghost=g;
+  const ph=document.createElement('div');ph.className='ph';ph.style.height=r.height+'px';drag.ph=ph;
+  drag.card.parentNode.insertBefore(ph,drag.card);
+  drag.card.style.display='none';
+  drag.body=drag.card.parentNode;
+  document.body.classList.add('is-dragging');
+  if(drag.pointerType!=='mouse'&&navigator.vibrate)try{navigator.vibrate(12);}catch{}
+  moveDrag(x,y);
+  const loop=()=>{if(!drag||!drag.active)return;autoScroll();drag.raf=requestAnimationFrame(loop);};drag.raf=requestAnimationFrame(loop);
+}
+function moveDrag(x,y){
+  drag.x=x;drag.y=y;
+  drag.ghost.style.transform=`translate(${x-drag.offX}px,${y-drag.offY}px) rotate(1.5deg)`;
+  const el=document.elementFromPoint(x,y);
+  const col=el&&el.closest('.col');
+  const body=col?col.querySelector('.col-body'):null;
+  document.querySelectorAll('.col.over').forEach(c=>{if(c!==col)c.classList.remove('over');});
+  if(body){col.classList.add('over');placePh(body,x,y);drag.body=body;}
+  drag.overCol=!!body;
+}
+function autoScroll(){
+  const{x,y}=drag;const edge=70,vh=window.innerHeight,vw=window.innerWidth;
+  if(y<edge+60)window.scrollBy(0,-Math.ceil((edge+60-y)/5));
+  else if(y>vh-edge)window.scrollBy(0,Math.ceil((y-(vh-edge))/5));
+  const board=document.querySelector('.board:not(.rows)');
+  if(board){if(x<edge)board.scrollLeft-=Math.ceil((edge-x)/4);else if(x>vw-edge)board.scrollLeft+=Math.ceil((x-(vw-edge))/4);}
+  if(drag.body&&drag.body.scrollHeight>drag.body.clientHeight){const r=drag.body.getBoundingClientRect();if(y<r.top+40)drag.body.scrollTop-=8;else if(y>r.bottom-40)drag.body.scrollTop+=8;}
+  if(drag.ghost)moveDrag(x,y);
+}
+function endDrag(commit){
+  const d=drag;drag=null;
+  if(!d)return;
+  clearTimeout(d.timer);
+  if(!d.active)return;
+  cancelAnimationFrame(d.raf);
+  document.body.classList.remove('is-dragging');
+  document.querySelectorAll('.col.over').forEach(c=>c.classList.remove('over'));
+  d.ghost.remove();
+  const body=d.ph.parentNode;
+  let lane=null,index=null;
+  if(commit&&d.overCol&&body){
+    lane=body.dataset.lane;
+    index=[...body.children].filter(c=>c===d.ph||(c.classList.contains('card')&&c!==d.card)).indexOf(d.ph);
+  }
+  d.ph.remove();d.card.style.display='';
+  suppressClick=true;setTimeout(()=>suppressClick=false,50);
+  if(lane)moveTask(d.id,lane,index);else render();
+  if(renderPending)render();
+}
+document.addEventListener('pointerdown',e=>{
+  if(state.tab!=='tasks'||state.modal)return;
+  const card=e.target.closest('.board .card');
+  if(!card||e.target.closest('button,input,select,textarea,a'))return;
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  drag={id:card.dataset.id,card,sx:e.clientX,sy:e.clientY,x:e.clientX,y:e.clientY,active:false,pointerType:e.pointerType};
+  if(e.pointerType!=='mouse')drag.timer=setTimeout(()=>{if(drag&&!drag.active)activateDrag(drag.x,drag.y);},260);
+});
+document.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  if(!drag.active){
+    drag.x=e.clientX;drag.y=e.clientY;
+    const dist=Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy);
+    if(drag.pointerType==='mouse'){if(dist>5)activateDrag(e.clientX,e.clientY);}
+    else if(dist>10){clearTimeout(drag.timer);drag=null;} // finger moved first → it's a scroll
+    return;
+  }
+  e.preventDefault();moveDrag(e.clientX,e.clientY);
+});
+document.addEventListener('touchmove',e=>{if(drag&&drag.active)e.preventDefault();},{passive:false});
+document.addEventListener('pointerup',()=>endDrag(true));
+document.addEventListener('pointercancel',()=>endDrag(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&drag&&drag.active)endDrag(false);});
+document.addEventListener('contextmenu',e=>{if(drag)e.preventDefault();});
+document.addEventListener('click',e=>{if(suppressClick){e.stopPropagation();e.preventDefault();}},true);
+document.addEventListener('dragstart',e=>{if(e.target.closest&&e.target.closest('.card'))e.preventDefault();});
+
+// ── Card actions ───────────────────────────────────────────────────────────────
+function findTask(id){return state.tasks.find(t=>String(t.id)===String(id));}
+// Move card to `lane`; `index` = drop position among visible cards (omit → top of lane)
+window.moveTask=(id,lane,index)=>{
+  const t=findTask(id);if(!t)return;
+  const same=t.lane===lane;
+  if(same&&(index==null||lane==='done'))return;
+  const u=same?{...t}:applyLane(t,lane);
+  u.order=orderAt(lane,id,index);
+  let spawned=null;
+  if(lane==='done'&&!t.done){spawned=spawnRepeat(t);if(spawned){u.spawnedNext=true;spawned.order=topOrder(spawned.lane);}}
+  const tasks=state.tasks.map(x=>String(x.id)===String(id)?u:x);
+  setState({tasks:spawned?[spawned,...tasks]:tasks});
+  if(spawned)toast(`↻ Next one added to ${laneLabel(spawned.lane)} — due ${fmtShort(spawned.dueDate)}`);
+};
+window.toggleLane=lane=>{const c={...state.collapsed,[lane]:!state.collapsed[lane]};ls.set('tt_collapsed',JSON.stringify(c));setState({collapsed:c});};
+window.toggleDone=id=>{const t=findTask(id);if(!t)return;moveTask(id,t.done?'today':'done');};
+window.quickAdd=(e,lane)=>{
+  e.preventDefault();const input=e.target.q;const v=input.value.trim();if(!v)return;
+  const category=state.filterCat!=='All'?state.filterCat:state.focus==='marketing'?'Marketing':'Admin';
+  const task=normalizeTask({id:uid(),category,description:v,job:'',priority:'Medium',dueDate:lane==='today'?todayStr:'',status:lane==='waiting'?'Waiting':'Not Started',notes:'',done:false,lane,repeat:'none',asanaGid:null,order:topOrder(lane)});
+  state.refocus='qa-'+lane;
+  setState({tasks:[task,...state.tasks]});
+};
+window.pullDueIntoToday=()=>{let n=0;const tasks=state.tasks.map(t=>{if(!t.done&&(t.lane==='backlog'||t.lane==='week')&&t.dueDate&&t.dueDate<=todayStr){n++;return{...applyLane(t,'today'),order:topOrder('today')-n};}return t;});setState({tasks});toast(`Moved ${n} card${n!==1?'s':''} to Today`);};
+window.deleteTask=id=>{if(confirm('Delete this card?')){addTombstone(id);setState({tasks:state.tasks.filter(t=>String(t.id)!==String(id)),modal:null});}};
+window.archiveCompleted=async()=>{
+  const done=state.tasks.filter(t=>t.done);
+  if(!done.length)return;
+  if(cloudOn()){
+    if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nThey stay permanently in your cloud Completed Log (and on the Sheet's Completed Log if connected).`))return;
+    // Make sure every one is in the cloud log before removing it from the board
+    const ops=done.map(t=>{cloud.logged.add(String(t.id));return['set',collRef('completedLog').doc(String(t.id)),logEntry(t)];});
+    await commitOps(ops);
+    if(cloud.error){toast('Could not save to the Completed Log — nothing was cleared.');return;}
+    const ids=new Set(done.map(t=>String(t.id)));
+    setState({tasks:state.tasks.filter(t=>!ids.has(String(t.id)))});
+    toast(`Archived ${ids.size} completed card${ids.size!==1?'s':''} ✓`);
+    return;
+  }
+  if(!(isSheetsConfigured()&&ls.get('tt_authed'))){toast('Connect Google Sheets first so completed cards are saved to your Completed Log before clearing.');return;}
+  if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nThey stay permanently in the Completed Log tab on your Google Sheet.`))return;
+  setState({syncStatus:'syncing',syncMsg:'Saving to Completed Log…'});
+  try{const merged=await pushToSheets(state.tasks,state.projects,state.parking);applySync({tasks:merged});}
+  catch(e){setState({syncStatus:'error',syncMsg:'Could not reach Sheets — nothing was cleared.'});return;}
+  const ids=new Set(state.tasks.filter(t=>t.done).map(t=>String(t.id)));
+  ids.forEach(id=>addTombstone(id));
+  applySync({tasks:state.tasks.filter(t=>!ids.has(String(t.id))),syncStatus:'success',syncMsg:'Completed cards archived to log ✓'});
+  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
+};
 
 // ── Parking Tab ────────────────────────────────────────────────────────────────
 function buildParkingTab(openItems){
   const cleared=state.parking.filter(k=>k.cleared);
-  const openHTML=openItems.length===0?`<div style="text-align:center;color:#15803D;background:#DCFCE7;border-radius:12px;padding:22px;font-size:14px;font-weight:600;margin-bottom:14px;">✓ All clear.</div>`:`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:14px;">${openItems.map((item,i)=>{const pc=PRI_COLORS[item.priority]||PRI_COLORS.Medium;return`<div style="padding:12px 13px;border-bottom:${i===openItems.length-1?'none':'1px solid #F3F4F6'};"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;"><div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap;">${item.time?`<span style="font-size:11px;color:#9CA3AF;font-weight:600;">${item.time}</span>`:''}${badge(item.priority,pc)}</div><div style="font-size:13px;color:#374151;margin-bottom:3px;"><strong>Was doing:</strong> ${item.wasWorkingOn}</div>${item.interruption?`<div style="font-size:13px;color:#6B7280;margin-bottom:5px;"><strong>Interrupted by:</strong> ${item.interruption}</div>`:''} ${item.nextStep?`<div style="font-size:13px;background:#EFF6FF;border-radius:7px;padding:6px 10px;color:#1D4ED8;font-weight:500;">→ ${item.nextStep}</div>`:''}</div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;"><button onclick="clearParking(${item.id})" style="background:#DCFCE7;border:none;border-radius:7px;padding:6px 10px;font-size:12px;color:#15803D;font-weight:600;">✓ Done</button><button onclick="deleteParking(${item.id})" style="background:none;border:1px solid #FEE2E2;border-radius:7px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div>`;}).join('')}</div>`;
-  const clearedHTML=cleared.length>0?`<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Cleared</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;opacity:0.65;">${cleared.map((item,i)=>`<div style="padding:9px 13px;border-bottom:${i===cleared.length-1?'none':'1px solid #F3F4F6'};display:flex;gap:8px;align-items:center;"><span style="color:#15803D;font-size:15px;">✓</span><div style="flex:1;"><div style="font-size:13px;color:#6B7280;text-decoration:line-through;">${item.wasWorkingOn}</div>${item.nextStep?`<div style="font-size:12px;color:#9CA3AF;">→ ${item.nextStep}</div>`:''}</div><button onclick="deleteParking(${item.id})" style="background:none;border:none;font-size:14px;color:#D1D5DB;">✕</button></div>`).join('')}</div>`:'';
-  return`<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;"><span style="font-size:20px;">🅿</span><div><div style="font-size:13px;font-weight:700;color:#C2410C;margin-bottom:2px;">Before you deal with it — park it first.</div><div style="font-size:12px;color:#9A3412;line-height:1.5;">5 seconds: what were you doing, what interrupted you, what's your next step.</div></div></div><div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Open — ${openItems.length} item${openItems.length!==1?'s':''}</div>${openHTML}${clearedHTML}`;
+  const openHTML=openItems.length===0?`<div style="text-align:center;color:#15803D;background:#DCFCE7;border-radius:12px;padding:22px;font-size:14px;font-weight:600;margin-bottom:14px;">✓ All clear.</div>`:`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:14px;">${openItems.map((item,i)=>{const pc=PRI_COLORS[item.priority]||PRI_COLORS.Medium;const id=esc(String(item.id));return`<div style="padding:12px 13px;border-bottom:${i===openItems.length-1?'none':'1px solid #F3F4F6'};"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div style="flex:1;min-width:0;"><div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap;">${item.time?`<span style="font-size:11px;color:#9CA3AF;font-weight:600;">${esc(item.time)}</span>`:''}${badge(item.priority,pc)}</div><div style="font-size:13px;color:#374151;margin-bottom:3px;"><strong>Was doing:</strong> ${esc(item.wasWorkingOn)}</div>${item.interruption?`<div style="font-size:13px;color:#6B7280;margin-bottom:5px;"><strong>Interrupted by:</strong> ${esc(item.interruption)}</div>`:''}${item.nextStep?`<div style="font-size:13px;background:#EFF6FF;border-radius:7px;padding:6px 10px;color:#1D4ED8;font-weight:500;">→ ${esc(item.nextStep)}</div>`:''}</div><div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0;"><button onclick="clearParking('${id}')" style="background:#DCFCE7;border:none;border-radius:7px;padding:6px 10px;font-size:12px;color:#15803D;font-weight:600;">✓ Done</button><button onclick="parkToCard('${id}')" title="Turn this into a card on the board" style="background:#DBEAFE;border:none;border-radius:7px;padding:6px 10px;font-size:12px;color:#1D4ED8;font-weight:600;">→ Card</button><button onclick="deleteParking('${id}')" style="background:none;border:1px solid #FEE2E2;border-radius:7px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div>`;}).join('')}</div>`;
+  const clearedHTML=cleared.length>0?`<div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Cleared</div><div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;opacity:0.65;">${cleared.map((item,i)=>`<div style="padding:9px 13px;border-bottom:${i===cleared.length-1?'none':'1px solid #F3F4F6'};display:flex;gap:8px;align-items:center;"><span style="color:#15803D;font-size:15px;">✓</span><div style="flex:1;"><div style="font-size:13px;color:#6B7280;text-decoration:line-through;">${esc(item.wasWorkingOn)}</div>${item.nextStep?`<div style="font-size:12px;color:#9CA3AF;">→ ${esc(item.nextStep)}</div>`:''}</div><button onclick="deleteParking('${esc(String(item.id))}')" style="background:none;border:none;font-size:14px;color:#D1D5DB;">✕</button></div>`).join('')}</div>`:'';
+  return`<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;"><span style="font-size:20px;">🅿</span><div><div style="font-size:13px;font-weight:700;color:#C2410C;margin-bottom:2px;">Before you deal with it — park it first.</div><div style="font-size:12px;color:#9A3412;line-height:1.5;">5 seconds: what were you doing, what interrupted you, what's your next step. Tap <strong>→ Card</strong> to put it on the board.</div></div></div><div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Open — ${openItems.length} item${openItems.length!==1?'s':''}</div>${openHTML}${clearedHTML}`;
 }
 
 // ── PM Tab ─────────────────────────────────────────────────────────────────────
 function buildPMTab(){
   const hCounts=PM_HEALTH.map(h=>({h,c:state.projects.filter(p=>p.health===h).length})).filter(x=>x.c>0);
   const summaryCards=hCounts.map(({h,c})=>{const hc=HEALTH_COLORS[h];return`<div style="background:${hc.bg};border:1px solid ${hc.text}30;border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">${hc.icon}</span><div><div style="font-size:20px;font-weight:800;color:${hc.text};">${c}</div><div style="font-size:11px;color:${hc.text};font-weight:600;">${h}</div></div></div>`;}).join('');
-  const projectCards=state.projects.map(proj=>{const hc=HEALTH_COLORS[proj.health]||HEALTH_COLORS['On Track'];const linked=state.tasks.filter(t=>t.job&&t.job.toLowerCase().includes(proj.name.toLowerCase().split(' ')[0]));const _ord=p=>({High:0,Medium:1,Low:2}[p]??1);const _sorted=linked.slice().sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return _ord(a.priority)-_ord(b.priority);});const doneCount=linked.filter(t=>t.done).length;const showDone=!!state.pmShowCompleted[proj.id];const visibleLinked=showDone?_sorted:_sorted.filter(t=>!t.done);const dl=daysLeft(proj.targetEnd);const dlText=dl===null?'':(dl<0?`${Math.abs(dl)}d overdue`:`${dl}d left`);const dlColor=dl===null?'':(dl<0?'#DC2626':dl<7?'#A16207':'#15803D');return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="padding:11px 13px;background:${hc.bg};border-bottom:2px solid ${hc.text}25;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:15px;">${hc.icon}</span><span style="font-size:15px;font-weight:800;color:#111827;">${proj.name}</span><span style="font-size:12px;color:#6B7280;">${proj.jobNum}</span></div><div style="font-size:12px;color:#6B7280;">PM: <strong style="color:#374151;">${proj.pm}</strong> · ${fmtDate(proj.startDate)} → ${fmtDate(proj.targetEnd)} ${dlText?`<strong style="color:${dlColor};">(${dlText})</strong>`:''}</div></div><div style="display:flex;gap:4px;flex-shrink:0;"><button onclick="openModal(${JSON.stringify(proj).replace(/"/g,'&quot;')})" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 9px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteProject(${proj.id})" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div><div style="padding:12px 13px;"><div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Progress</div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:8px;background:#E5E7EB;border-radius:99px;overflow:hidden;"><div style="width:${proj.pctComplete}%;height:100%;background:${proj.pctComplete>=80?'#16A34A':proj.pctComplete>=50?'#2563EB':'#F97316'};border-radius:99px;"></div></div><span style="font-size:13px;font-weight:700;color:#374151;min-width:34px;">${proj.pctComplete}%</span></div>${proj.blockers?`<div style="margin-top:7px;font-size:12px;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:5px 9px;">⚠ ${proj.blockers}</div>`:''}</div><div><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Linked Tasks (${linked.length}) <span style="background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:1px 6px;font-size:10px;">auto</span>${doneCount>0?`<button onclick="togglePMCompleted(${proj.id})" style="float:right;background:none;border:none;color:#2563EB;font-size:11px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;">${showDone?'Hide':'Show'} ${doneCount} completed</button>`:''}</div>${linked.length?`<div style="display:flex;flex-direction:column;gap:6px;">${visibleLinked.map(t=>`<div style="display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:#F8FAFC;border-radius:7px;"><span style="margin-top:2px;width:15px;height:15px;border-radius:4px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;background:${t.done?'#16A34A':'#D1D5DB'};">${t.done?'✓':''}</span><div style="flex:1;min-width:0;"><div style="font-size:13px;color:${t.done?'#9CA3AF':'#374151'};font-weight:600;text-decoration:${t.done?'line-through':'none'};margin-bottom:3px;word-break:break-word;">${t.description}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${badge(t.status,STATUS_COLORS[t.status]||STATUS_COLORS['Not Started'])}${badge(t.priority,PRI_COLORS[t.priority]||PRI_COLORS.Medium)}${t.dueDate?`<span style="font-size:11px;color:${isOverdue(t.dueDate,t.status)?'#DC2626':'#6B7280'};">${fmtDate(t.dueDate)}</span>`:''}</div></div></div>`).join('')}</div>`:`<div style="font-size:12px;color:#9CA3AF;font-style:italic;">No tasks linked yet — add a task with this project name in its Job field.</div>`}</div></div><div style="padding:5px 13px 9px;border-top:1px solid #F3F4F6;"><span style="font-size:11px;color:#9CA3AF;">Last check-in: ${fmtDate(proj.lastCheckin)||'—'}</span></div></div>`;}).join('');
+  const projectCards=state.projects.map(proj=>{
+    const pid=esc(String(proj.id));
+    const hc=HEALTH_COLORS[proj.health]||HEALTH_COLORS['On Track'];
+    const key=(proj.name||'').toLowerCase().split(' ')[0];
+    const linked=key?state.tasks.filter(t=>t.job&&t.job.toLowerCase().includes(key)):[];
+    const sorted=linked.slice().sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return(PRI_ORD[a.priority]??1)-(PRI_ORD[b.priority]??1);});
+    const doneCount=linked.filter(t=>t.done).length;
+    const showDone=!!state.pmShowCompleted[proj.id];
+    const visible=showDone?sorted:sorted.filter(t=>!t.done);
+    const dl=daysLeft(proj.targetEnd);const dlText=dl===null?'':(dl<0?`${Math.abs(dl)}d overdue`:`${dl}d left`);const dlColor=dl===null?'':(dl<0?'#DC2626':dl<7?'#A16207':'#15803D');
+    return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="padding:11px 13px;background:${hc.bg};border-bottom:2px solid ${hc.text}25;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:15px;">${hc.icon}</span><span style="font-size:15px;font-weight:800;color:#111827;">${esc(proj.name)}</span><span style="font-size:12px;color:#6B7280;">${esc(proj.jobNum)}</span></div><div style="font-size:12px;color:#6B7280;">PM: <strong style="color:#374151;">${esc(proj.pm)}</strong> · ${fmtDate(proj.startDate)} → ${fmtDate(proj.targetEnd)} ${dlText?`<strong style="color:${dlColor};">(${dlText})</strong>`:''}</div></div><div style="display:flex;gap:4px;flex-shrink:0;"><button onclick="openProject('${pid}')" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 9px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteProject('${pid}')" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div><div style="padding:12px 13px;"><div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Progress</div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:8px;background:#E5E7EB;border-radius:99px;overflow:hidden;"><div style="width:${proj.pctComplete}%;height:100%;background:${proj.pctComplete>=80?'#16A34A':proj.pctComplete>=50?'#2563EB':'#F97316'};border-radius:99px;"></div></div><span style="font-size:13px;font-weight:700;color:#374151;min-width:34px;">${proj.pctComplete}%</span></div>${proj.blockers?`<div style="margin-top:7px;font-size:12px;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:5px 9px;">⚠ ${esc(proj.blockers)}</div>`:''}</div><div><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Linked Cards (${linked.length}) <span style="background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:1px 6px;font-size:10px;">auto</span>${doneCount>0?`<button onclick="togglePMCompleted('${pid}')" style="float:right;background:none;border:none;color:#2563EB;font-size:11px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;">${showDone?'Hide':'Show'} ${doneCount} completed</button>`:''}</div>${linked.length?`<div style="display:flex;flex-direction:column;gap:6px;">${visible.map(t=>`<div onclick="openTask('${esc(String(t.id))}')" style="cursor:pointer;display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:#F8FAFC;border-radius:7px;"><span style="margin-top:2px;width:15px;height:15px;border-radius:4px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;background:${t.done?'#16A34A':'#D1D5DB'};">${t.done?'✓':''}</span><div style="flex:1;min-width:0;"><div style="font-size:13px;color:${t.done?'#9CA3AF':'#374151'};font-weight:600;text-decoration:${t.done?'line-through':'none'};margin-bottom:3px;word-break:break-word;">${esc(t.description)}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${badge(laneLabel(t.lane),{bg:'#EEF2FF',text:'#4338CA'})}${badge(t.priority,PRI_COLORS[t.priority]||PRI_COLORS.Medium)}${t.dueDate?`<span style="font-size:11px;color:${isOverdue(t.dueDate,t.status)?'#DC2626':'#6B7280'};">${fmtDate(t.dueDate)}</span>`:''}</div></div></div>`).join('')}</div>`:`<div style="font-size:12px;color:#9CA3AF;font-style:italic;">No cards linked yet — add a card with this project name in its Job field.</div>`}</div></div><div style="padding:5px 13px 9px;border-top:1px solid #F3F4F6;"><span style="font-size:11px;color:#9CA3AF;">Last check-in: ${fmtDate(proj.lastCheckin)||'—'}</span></div></div>`;
+  }).join('');
   return`${summaryCards?`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${summaryCards}</div>`:''} ${state.projects.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No projects yet.</div>`:projectCards}`;
 }
 
 // ── Modals ─────────────────────────────────────────────────────────────────────
-function buildModal(){const m=state.modal;if(m==='addTask'||(m&&m.category))return buildTaskModal(m==='addTask'?null:m);if(m==='addPark')return buildParkModal();if(m==='addProject'||(m&&m.health))return buildPMModal(m==='addProject'?null:m);return'';}
-function buildTaskModal(task){const t=task||{category:'Service Calendar',description:'',job:'',priority:'Medium',dueDate:todayStr,status:'Not Started',notes:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${task?'Edit Task':'Add Task'}</h3><form onsubmit="submitTaskForm(event,${task?task.id:'null'})">${fi('Task Description *','description',t.description,'textarea')}${fi('Job / Customer','job',t.job)}${fi('Notes','notes',t.notes,'textarea')}<div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Category</label>${sel('category',CATEGORIES,t.category)}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Priority</label>${sel('priority',PRIORITIES,t.priority)}</div><div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Status</label>${sel('status',STATUSES,t.status)}</div></div>${fi('Due Date','dueDate',t.dueDate,'date')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${task?'Save':'Add Task'}</button></div></form>`);}
-function buildParkModal(){return modal(`<h3 style="margin:0 0 4px;font-size:15px;font-weight:700;">🅿 Park an Interruption</h3><p style="font-size:12px;color:#6B7280;margin-bottom:16px;">30 seconds max — just enough to find your place again.</p><form onsubmit="submitParkForm(event)">${fi('I was working on…','wasWorkingOn','','textarea')}${fi('Interruption was…','interruption','','textarea')}${fi('Next step when I return','nextStep','','textarea')}<div style="margin-bottom:14px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:6px;">Priority</label><div style="display:flex;gap:8px;">${PRIORITIES.map(p=>`<button type="button" onclick="setParkPri('${p}')" id="pri-${p}" style="flex:1;padding:7px;border-radius:8px;border:2px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:600;">${p}</button>`).join('')}</div></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#F97316;color:#fff;font-size:13px;font-weight:700;">Park It</button></div></form>`);}
-function buildPMModal(proj){const p=proj||{name:'',pm:'',jobNum:'',startDate:todayStr,targetEnd:'',pctComplete:0,health:'On Track',blockers:''};return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${proj?'Update Project':'Add Project'}</h3><form onsubmit="submitPMForm(event,${proj?proj.id:'null'})">${fi('Project Name *','name',p.name)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['PM Name:pm','Job #:jobNum'].map(x=>{const[l,k]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${['Start Date:startDate:date','Target End:targetEnd:date'].map(x=>{const[l,k,t]=x.split(':');return`<div><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">${l}</label><input type="${t}" name="${k}" value="${p[k]||''}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;}).join('')}</div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">% Complete — <span id="pct-label">${p.pctComplete}</span>%</label><input type="range" name="pctComplete" min="0" max="100" value="${p.pctComplete}" oninput="document.getElementById('pct-label').textContent=this.value" style="width:100%;accent-color:#2563EB;"></div><div style="margin-bottom:12px;"><label style="font-size:12px;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Health</label>${sel('health',PM_HEALTH,p.health)}</div>${fi('Blockers / Notes','blockers',p.blockers||'','textarea')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${proj?'Save':'Add'}</button></div></form>`);}
+function buildModal(){
+  const m=state.modal;
+  if(m.type==='task')return buildTaskModal(m.id?findTask(m.id):null,m.lane);
+  if(m.type==='park')return buildParkModal();
+  if(m.type==='project')return buildPMModal(m.id?state.projects.find(p=>String(p.id)===String(m.id)):null);
+  return'';
+}
+function buildTaskModal(task,lane){
+  const t=task||{category:state.filterCat!=='All'?state.filterCat:(state.focus==='marketing'?'Marketing':'Service Calendar'),description:'',job:'',priority:'Medium',dueDate:lane==='today'?todayStr:'',status:lane==='waiting'?'Waiting':'Not Started',notes:'',lane:lane||'backlog',repeat:'none'};
+  const idArg=task?`'${esc(String(task.id))}'`:'null';
+  return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${task?'Edit Card':'New Card'}</h3><form onsubmit="submitTaskForm(event,${idArg})">${fi('What needs doing? *','description',t.description,'textarea')}${fi('Job / Customer','job',t.job)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><div>${lbl('Board column')}${sel('lane',LANES,t.lane)}</div><div>${lbl('Category')}${sel('category',CATEGORIES,t.category)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;"><div>${lbl('Priority')}${sel('priority',PRIORITIES,t.priority)}</div><div>${lbl('Status')}${sel('status',STATUSES,t.status)}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">${fi('Due date (optional)','dueDate',t.dueDate||'','date')}<div style="margin-bottom:12px;">${lbl('Repeats')}${sel('repeat',REPEATS,t.repeat||'none')}</div></div>${fi('Notes','notes',t.notes,'textarea',t.lane==='waiting'?'Who/what are you waiting on?':'')}<div style="display:flex;gap:8px;align-items:center;margin-top:4px;">${task?`<button type="button" onclick="deleteTask('${esc(String(task.id))}')" style="padding:9px 12px;border-radius:8px;border:1.5px solid #FEE2E2;background:#fff;font-size:13px;font-weight:600;color:#DC2626;">Delete</button>`:''}<span style="flex:1;"></span><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${task?'Save':'Add Card'}</button></div></form>`);
+}
+function buildParkModal(){return modal(`<h3 style="margin:0 0 4px;font-size:15px;font-weight:700;">🅿 Park an Interruption</h3><p style="font-size:12px;color:#6B7280;margin-bottom:16px;">30 seconds max — just enough to find your place again.</p><form onsubmit="submitParkForm(event)">${fi('I was working on…','wasWorkingOn','','textarea')}${fi('Interruption was…','interruption','','textarea')}${fi('Next step when I return','nextStep','','textarea')}<div style="margin-bottom:14px;">${lbl('Priority')}<div style="display:flex;gap:8px;">${PRIORITIES.map(p=>`<button type="button" onclick="setParkPri('${p}')" id="pri-${p}" style="flex:1;padding:7px;border-radius:8px;border:2px solid #E5E7EB;background:#fff;color:#374151;font-size:13px;font-weight:600;">${p}</button>`).join('')}</div></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#F97316;color:#fff;font-size:13px;font-weight:700;">Park It</button></div></form>`);}
+function buildPMModal(proj){
+  const p=proj||{name:'',pm:'',jobNum:'',startDate:todayStr,targetEnd:'',pctComplete:0,health:'On Track',blockers:''};
+  const idArg=proj?`'${esc(String(proj.id))}'`:'null';
+  const inp=(l,k,t='text')=>`<div>${lbl(l)}<input type="${t}" name="${k}" value="${esc(p[k]||'')}" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;box-sizing:border-box;outline:none;"></div>`;
+  return modal(`<h3 style="margin:0 0 16px;font-size:15px;font-weight:700;">${proj?'Update Project':'Add Project'}</h3><form onsubmit="submitPMForm(event,${idArg})">${fi('Project Name *','name',p.name)}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${inp('PM Name','pm')}${inp('Job #','jobNum')}</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">${inp('Start Date','startDate','date')}${inp('Target End','targetEnd','date')}</div><div style="margin-bottom:12px;">${lbl(`% Complete — <span id="pct-label">${p.pctComplete}</span>%`)}<input type="range" name="pctComplete" min="0" max="100" value="${p.pctComplete}" oninput="document.getElementById('pct-label').textContent=this.value" style="width:100%;accent-color:#2563EB;"></div><div style="margin-bottom:12px;">${lbl('Health')}${sel('health',PM_HEALTH,p.health)}</div>${fi('Blockers / Notes','blockers',p.blockers||'','textarea')}<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button type="submit" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">${proj?'Save':'Add'}</button></div></form>`);
+}
 
 // ── Actions ────────────────────────────────────────────────────────────────────
 window.setTab=t=>setState({tab:t,modal:null});
-window.togglePMCompleted=id=>setState({pmShowCompleted:{...state.pmShowCompleted,[id]:!state.pmShowCompleted[id]}});
-window.setView=v=>setState({view:v});
+window.setLayout=v=>{ls.set('tt_layout',v);setState({layout:v});};
+window.setFocus=f=>{ls.set('tt_focus',f);setState({focus:f});};
 window.setSearch=v=>setState({search:v});
-window.setFilter=(type,val)=>setState(type==='cat'?{filterCat:val}:{filterStatus:val});
+window.setFilterCat=v=>setState({filterCat:v});
+window.togglePMCompleted=id=>setState({pmShowCompleted:{...state.pmShowCompleted,[id]:!state.pmShowCompleted[id]}});
 window.closeModal=()=>setState({modal:null});
 window.handleModalBg=e=>{if(e.target===e.currentTarget)setState({modal:null});};
-window.openModal=data=>{if(data==='addTask'||data==='addPark'||data==='addProject'){setState({modal:data});return;}let obj=typeof data==='string'?JSON.parse(data.replace(/&quot;/g,'"')):data;setState({modal:obj});};
-window.toggleTask=id=>setState({tasks:state.tasks.map(t=>{if(t.id!==id)return t;const nd=!t.done;return{...t,done:nd,status:nd?'Complete':'In Progress',completedAt:nd?todayStr:null};})});
-window.deleteTask=id=>{if(confirm('Delete this task?')){addTombstone(id);setState({tasks:state.tasks.filter(t=>t.id!==id)});}};
-window.clearParking=id=>setState({parking:state.parking.map(k=>k.id===id?{...k,cleared:true}:k)});
-window.deleteParking=id=>setState({parking:state.parking.filter(k=>k.id!==id)});
-window.deleteProject=id=>{if(confirm('Delete this project?'))setState({projects:state.projects.filter(p=>p.id!==id)});};
+window.openTask=(id,lane)=>setState({modal:{type:'task',id:id||null,lane:lane||'backlog'}});
+window.openProject=id=>setState({modal:{type:'project',id:id||null}});
+window.openModalType=type=>setState({modal:{type}});
+window.clearParking=id=>setState({parking:state.parking.map(k=>String(k.id)===String(id)?{...k,cleared:true}:k)});
+window.deleteParking=id=>setState({parking:state.parking.filter(k=>String(k.id)!==String(id))});
+window.parkToCard=id=>{
+  const k=state.parking.find(x=>String(x.id)===String(id));if(!k)return;
+  const notes=[k.time?`Parked ${k.time}`:'',k.wasWorkingOn?`Was working on: ${k.wasWorkingOn}`:'',k.interruption?`Interrupted by: ${k.interruption}`:''].filter(Boolean).join(' · ');
+  const task=normalizeTask({id:uid(),category:'Admin',description:k.nextStep||k.wasWorkingOn,job:'',priority:k.priority||'Medium',dueDate:todayStr,status:'Not Started',notes,done:false,lane:'today',repeat:'none',asanaGid:null,order:topOrder('today')});
+  setState({tasks:[task,...state.tasks],parking:state.parking.map(x=>String(x.id)===String(id)?{...x,cleared:true}:x)});
+  toast('Added to Today on the board');
+};
+window.deleteProject=id=>{if(confirm('Delete this project?'))setState({projects:state.projects.filter(p=>String(p.id)!==String(id))});};
 window.setParkPri=pri=>{PRIORITIES.forEach(p=>{const btn=document.getElementById(`pri-${p}`);if(!btn)return;const pc=PRI_COLORS[p];btn.style.border=p===pri?`2px solid ${pc.text}`:'2px solid #E5E7EB';btn.style.background=p===pri?pc.bg:'#fff';btn.style.color=p===pri?pc.text:'#374151';});window._parkPri=pri;};
-window.submitTaskForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const prev=id?state.tasks.find(t=>t.id===id):null;const done=fd.get('status')==='Complete';const task={id:id||Date.now(),category:fd.get('category'),description:fd.get('description'),job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate'),status:fd.get('status'),notes:fd.get('notes'),done,completedAt:done?((prev&&prev.completedAt)?prev.completedAt:todayStr):null,asanaGid:prev?prev.asanaGid||null:null};if(!task.description.trim())return;setState({tasks:id?state.tasks.map(t=>t.id===id?task:t):[task,...state.tasks],modal:null});};
-window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});};
-window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!proj.name.trim())return;setState({projects:id?state.projects.map(p=>p.id===id?proj:p):[proj,...state.projects],modal:null});};
+window.submitTaskForm=(e,id)=>{
+  e.preventDefault();const fd=new FormData(e.target);
+  const prev=id?findTask(id):null;
+  const description=String(fd.get('description')||'').trim();if(!description)return;
+  let lane=fd.get('lane'),status=fd.get('status');
+  const laneChanged=!prev||prev.lane!==lane;
+  const statusChanged=!prev||prev.status!==status;
+  // Keep status and column in step
+  const isWait=s=>s==='Waiting'||s==='Blocked';
+  if(statusChanged&&!laneChanged){
+    // Status was changed → move the card to match
+    if(status==='Complete')lane='done';
+    else if(isWait(status))lane='waiting';
+    else if(lane==='waiting'||lane==='done')lane=deriveLane({status,dueDate:fd.get('dueDate')||''});
+  }else{
+    // Column was changed (or both) → column wins, status follows
+    if(lane==='done')status='Complete';
+    else if(lane==='waiting'){if(!isWait(status))status='Waiting';}
+    else if(isWait(status)||status==='Complete')status='Not Started';
+  }
+  let task={...(prev||{}),id:id||uid(),category:fd.get('category'),description,job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate')||'',status,notes:fd.get('notes'),lane,repeat:fd.get('repeat')||'none',done:lane==='done',completedAt:lane==='done'?((prev&&prev.completedAt)||todayStr):null,asanaGid:prev?prev.asanaGid||null:null,sample:undefined};
+  if(lane==='waiting'&&status!=='Waiting'&&status!=='Blocked')task.status='Waiting';
+  task=normalizeTask(task);
+  if(!prev||prev.lane!==task.lane)task.order=topOrder(task.lane,task.id); // new or moved → top of its lane
+  let spawned=null;
+  if(task.done&&!(prev&&prev.done)){spawned=spawnRepeat(task);if(spawned){task.spawnedNext=true;spawned.order=topOrder(spawned.lane);}}
+  let tasks=id?state.tasks.map(t=>String(t.id)===String(id)?task:t):[task,...state.tasks];
+  if(spawned)tasks=[spawned,...tasks];
+  setState({tasks,modal:null});
+  if(spawned)toast(`↻ Next one added to ${laneLabel(spawned.lane)} — due ${fmtShort(spawned.dueDate)}`);
+};
+window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});window._parkPri=null;};
+window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!String(proj.name||'').trim())return;setState({projects:id?state.projects.map(p=>String(p.id)===String(id)?proj:p):[proj,...state.projects],modal:null});};
 window.syncPush=syncPush;
 window.syncPull=syncPull;
 window.asanaPush=asanaPush;
-window.archiveCompleted=async()=>{
-  const done=state.tasks.filter(t=>t.done);
-  if(!done.length)return;
-  if(!(isSheetsConfigured()&&ls.get('tt_authed'))){alert('Connect Google Sheets first so completed tasks are saved to your permanent Completed Log before clearing them from the active list.');return;}
-  if(!confirm(`Clear ${done.length} completed task(s) from the active list?\n\nThey stay permanently in the Completed Log tab on your Google Sheet.`))return;
-  setState({syncStatus:'syncing',syncMsg:'Saving to Completed Log…'});
-  try{
-    const merged=await pushToSheets(state.tasks,state.projects,state.parking); // appends done tasks to the log
-    applySync({tasks:merged});
-  }catch(e){setState({syncStatus:'error',syncMsg:'Could not reach Sheets — nothing was cleared.'});return;}
-  done.forEach(t=>addTombstone(t.id));
-  applySync({tasks:state.tasks.filter(t=>!t.done),syncStatus:'success',syncMsg:'Completed tasks archived to log ✓'});
-  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.modal)setState({modal:null});});
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{if(isSheetsConfigured())initTokenClient();});
+persist();
 render();
+initCloud();
 
-// ── Service Worker ─────────────────────────────────────────────────────────────
-if('serviceWorker' in navigator){const sw=`const C='tt-v7';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>clients.claim());self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;})));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
+// ── Service Worker (network-first so updates show up right away) ───────────────
+if('serviceWorker' in navigator){const sw=`const C='tt-v10';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>clients.claim())));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;}).catch(()=>caches.match(e.request)));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
 </script>
 <script>
-const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='40' y='56' width='112' height='14' rx='7' fill='%232563EB'/%3E%3Crect x='40' y='84' width='88' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='112' width='100' height='14' rx='7' fill='%234B5563'/%3E%3Crect x='40' y='140' width='72' height='14' rx='7' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
+const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='32' y='44' width='36' height='104' rx='8' fill='%234B5563'/%3E%3Crect x='78' y='44' width='36' height='76' rx='8' fill='%232563EB'/%3E%3Crect x='124' y='44' width='36' height='56' rx='8' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
 const mb=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
 const lnk=document.createElement('link');lnk.rel='manifest';lnk.href=URL.createObjectURL(mb);document.head.appendChild(lnk);
 </script>
