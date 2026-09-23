@@ -91,6 +91,27 @@ input,textarea{cursor:text;}
 .ghost{position:fixed;left:0;top:0;z-index:400;pointer-events:none;box-shadow:0 12px 28px rgba(15,23,42,.28)!important;opacity:.95;cursor:grabbing;}
 body.is-dragging,body.is-dragging *{cursor:grabbing!important;}
 @media (max-width:640px){.board:not(.rows) .col{flex:0 0 86vw;max-height:calc(100vh - 250px);}.board.rows .col{grid-template-columns:1fr;}.board.rows .col-body{padding:0 8px 10px;grid-template-columns:1fr;}.board.rows .col-side{padding-bottom:4px;}.stat{min-width:70px;padding:7px 10px;}.stat b{font-size:17px;}}
+.pj-list{display:flex;flex-direction:column;gap:6px;}
+.pj{background:#fff;border:1px solid #E5E7EB;border-radius:10px;}
+.pj.open{box-shadow:0 2px 8px rgba(15,23,42,.06);}
+.pj-row{display:grid;grid-template-columns:20px 10px minmax(0,1fr) auto 14px;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;}
+.pj-handle{cursor:grab;color:#94A3B8;font-weight:900;letter-spacing:-3px;touch-action:none;user-select:none;-webkit-user-select:none;text-align:center;font-size:15px;padding:6px 0;}
+.pj-handle:hover{color:#475569;}
+.pj-dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.pj-name{min-width:0;}
+.pj-name b{display:block;font-size:14px;font-weight:800;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pj-name span{font-size:11.5px;color:#64748B;}
+.pj-stats{display:flex;align-items:center;gap:10px;justify-content:flex-start;flex-wrap:wrap;width:min(470px,52vw);}
+.pj-prog{display:flex;align-items:center;gap:6px;width:130px;}
+.pj-prog .bar{flex:1;height:7px;background:#E5E7EB;border-radius:99px;overflow:hidden;}
+.pj-prog .bar i{display:block;height:100%;border-radius:99px;}
+.pj-prog span{font-size:12px;font-weight:700;color:#374151;min-width:32px;text-align:right;}
+.pj-due{font-size:12px;font-weight:700;min-width:84px;}
+.pj-chev{color:#94A3B8;font-size:12px;}
+.pj-detail{padding:2px 14px 14px 52px;}
+.pj-ph{border:2px dashed #7E22CE;background:rgba(126,34,206,.05);border-radius:10px;}
+.pj.ghost{position:fixed;left:0;top:0;z-index:400;pointer-events:none;box-shadow:0 12px 28px rgba(15,23,42,.25);opacity:.96;}
+@media (max-width:640px){.pj-row{grid-template-columns:20px 10px minmax(0,1fr) 14px;}.pj-stats{grid-column:3/5;grid-row:2;width:auto;gap:8px;}.pj-chev{grid-column:4;grid-row:1;}.pj-handle{grid-row:1/3;}.pj-detail{padding:2px 12px 12px 12px;}}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1F2937;color:#fff;font-size:13px;font-weight:600;padding:10px 16px;border-radius:10px;z-index:300;box-shadow:0 6px 20px rgba(0,0,0,.25);}
 </style>
 </head>
@@ -105,7 +126,6 @@ body.is-dragging,body.is-dragging *{cursor:grabbing!important;}
   <p>To install on iPhone: tap the <strong>Share button ↑</strong> in Safari, then tap <strong>"Add to Home Screen"</strong>.</p>
   <button id="ios-close">Got it</button>
 </div>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -156,9 +176,6 @@ const CAT_COLORS={"Service Calendar":{bg:"#DBEAFE",text:"#1D4ED8",dot:"#3B82F6"}
 const PRI_COLORS={High:{bg:"#FEE2E2",text:"#B91C1C"},Medium:{bg:"#FEF9C3",text:"#A16207"},Low:{bg:"#DCFCE7",text:"#15803D"}};
 const STATUS_COLORS={"Not Started":{bg:"#F1F5F9",text:"#475569"},"In Progress":{bg:"#DBEAFE",text:"#1D4ED8"},"Waiting":{bg:"#FEF9C3",text:"#A16207"},"Blocked":{bg:"#FEE2E2",text:"#B91C1C"},"Complete":{bg:"#DCFCE7",text:"#15803D"}};
 const HEALTH_COLORS={"On Track":{bg:"#DCFCE7",text:"#15803D",icon:"🟢"},"At Risk":{bg:"#FEF9C3",text:"#A16207",icon:"🟡"},"Delayed":{bg:"#FEE2E2",text:"#B91C1C",icon:"🔴"},"On Hold":{bg:"#F1F5F9",text:"#475569",icon:"⏸"},"Complete":{bg:"#DCFCE7",text:"#15803D",icon:"✅"}};
-const SCOPES='https://www.googleapis.com/auth/spreadsheets';
-const AUTOPUSH_DELAY=8000;
-const TASK_RANGE="'Daily Tasks'!A5:N500";
 
 const SAMPLE_TASKS=[
   {id:1,category:"Service Calendar",description:"Call back Mrs. Thompson re: quote",job:"Thompson",priority:"High",dueDate:todayStr,status:"In Progress",notes:"Left voicemail — try again after 2pm",done:false,lane:'today'},
@@ -217,7 +234,7 @@ function autoSort(arr){
   });
 }
 const hasOrder=t=>typeof t.order==='number'&&isFinite(t.order);
-// Cards without a saved position (older cards, cards added in the Sheet) get one, in the old auto-sort order
+// Cards without a saved position (older cards, imported cards) get one, in the old auto-sort order
 function assignOrders(tasks){
   const byLane={};tasks.forEach(t=>{(byLane[t.lane]=byLane[t.lane]||[]).push(t);});
   Object.values(byLane).forEach(arr=>{
@@ -265,172 +282,6 @@ function spawnRepeat(t){
   if(!t.repeat||t.repeat==='none'||t.spawnedNext)return null;
   const due=nextDue(t.dueDate,t.repeat);if(!due)return null;
   return normalizeTask({id:uid(),category:t.category,description:t.description,job:t.job,priority:t.priority,dueDate:due,status:'Not Started',notes:t.notes,done:false,repeat:t.repeat,lane:laneForDue(due)});
-}
-
-// ── Google OAuth ───────────────────────────────────────────────────────────────
-let tokenClient=null,accessToken=null,tokenExpiry=0;
-function getClientId(){return ls.get('tt_clientid')||'';}
-function getSheetId(){return ls.get('tt_sheetid')||'';}
-function isSheetsConfigured(){return getClientId().length>0&&getSheetId().length>0;}
-function isAuthenticated(){return accessToken&&Date.now()<tokenExpiry;}
-
-function initTokenClient(){
-  const clientId=getClientId();
-  if(!clientId||!window.google)return;
-  tokenClient=google.accounts.oauth2.initTokenClient({
-    client_id:clientId,scope:SCOPES,
-    callback:(resp)=>{
-      if(resp.error){setState({syncStatus:'error',syncMsg:'Sign-in failed: '+resp.error});return;}
-      accessToken=resp.access_token;
-      tokenExpiry=Date.now()+(resp.expires_in-60)*1000;
-      ls.set('tt_authed','1');
-      setState({syncStatus:'syncing',syncMsg:'Signed in — syncing…'});
-      pushToSheets(state.tasks,state.projects,state.parking).then(merged=>{
-        applySync({tasks:merged,syncStatus:'success',syncMsg:'Synced to Google Sheets ✓'});
-        setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-      }).catch(e=>setState({syncStatus:'error',syncMsg:'Sync failed: '+e.message}));
-    },
-  });
-}
-
-async function ensureToken(){
-  if(isAuthenticated())return;
-  return new Promise((resolve,reject)=>{
-    if(!tokenClient)initTokenClient();
-    if(!tokenClient){reject(new Error('OAuth not configured'));return;}
-    const orig=tokenClient.callback;
-    tokenClient.callback=(resp)=>{orig(resp);if(resp.error)reject(new Error(resp.error));else resolve();};
-    tokenClient.requestAccessToken({prompt:accessToken?'none':'consent'});
-  });
-}
-
-// ── Google Sheets API ──────────────────────────────────────────────────────────
-async function sheetsReq(method,path,body){
-  await ensureToken();
-  const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}${path}`,{
-    method,headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'},
-    body:body?JSON.stringify(body):undefined,
-  });
-  if(!res.ok){const e=await res.json();throw new Error(e.error?.message||'Sheets error');}
-  return method==='POST'&&path.includes('clear')?{}:res.json();
-}
-
-function parseSheetDate(v){if(!v)return'';const m=String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;return'';}
-// Columns A–K are unchanged from v7. L = Board Column, M = Repeats (new in v8).
-function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'',String(t.id||''),laneLabel(t.lane),t.repeat&&t.repeat!=='none'?t.repeat:'',hasOrder(t)?Math.round(t.order*1000)/1000:'']);}
-function laneFromLabel(v){const s=String(v||'').trim().toLowerCase();const l=LANES.find(x=>x.label.toLowerCase()===s||x.id===s);return l?l.id:'';}
-function rowsToTasks(rows){return rows.filter(r=>r[2]&&String(r[2]).trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();const done=r[9]==='✅'||r[7]==='Complete';return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done,completedAt:done?parseSheetDate(r[6])||todayStr:null,lane:laneFromLabel(r[11]),repeat:String(r[12]||'').trim().toLowerCase(),order:sheetNum(r[13])};});}
-function sheetNum(v){if(v===undefined||v===null||String(v).trim()==='')return undefined;const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:undefined;}
-function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
-function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
-function parkingToRows(p){return p.map(p=>[p.time||'',p.wasWorkingOn||'',p.interruption||'',p.nextStep||'',p.priority||'Medium',p.cleared?'✅ Cleared':'⏳ Pending']);}
-function rowsToParking(rows){return rows.filter(r=>r[1]&&r[1].trim()).map((r,i)=>({id:Date.now()+i,time:r[0]||'',wasWorkingOn:r[1]||'',interruption:r[2]||'',nextStep:r[3]||'',priority:r[4]||'Medium',cleared:r[5]==='✅ Cleared'}));}
-
-async function ensureTaskHeaders(){
-  if(ls.get('tt_hdr_v9'))return;
-  try{
-    const r=await sheetsReq('GET',`/values/'Daily Tasks'!L4:N4`);
-    const v=(r.values&&r.values[0])||[];
-    const ours=(x,h)=>!x||x===h;
-    if(ours(v[0],'Board Column')&&ours(v[1],'Repeats')&&ours(v[2],'Order'))await sheetsReq('PUT',`/values/'Daily Tasks'!L4?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!L4",majorDimension:'ROWS',values:[['Board Column','Repeats','Order']]});
-    ls.set('tt_hdr_v9','1');
-  }catch(e){}
-}
-
-async function pushToSheets(tasks,projects,parking){
-  // Cloud mode: the Sheet is a one-way copy of the cloud data (no merging back)
-  const oneWay=cloudOn();
-  let merged;
-  if(oneWay){merged=tasks;}
-  else{
-    // Read current sheet tasks so direct-in-sheet additions are preserved (merge, not overwrite)
-    let sheetTasks=[];
-    try{const tR=await sheetsReq('GET',`/values/${TASK_RANGE}`);sheetTasks=rowsToTasks(tR.values||[]);}catch(e){}
-    sheetTasks=reconcileIds(tasks,sheetTasks);
-    merged=normalizeAll(mergeForPush(tasks,sheetTasks));
-  }
-  await sheetsReq('POST',`/values/${TASK_RANGE}:clear`);
-  if(merged.length)await sheetsReq('PUT',`/values/'Daily Tasks'!A5?valueInputOption=USER_ENTERED`,{range:"'Daily Tasks'!A5",majorDimension:'ROWS',values:tasksToRows(merged)});
-  await ensureTaskHeaders();
-  await sheetsReq('POST',`/values/'PM Status'!A7:K50:clear`);
-  if(projects.length)await sheetsReq('PUT',`/values/'PM Status'!A7?valueInputOption=USER_ENTERED`,{range:"'PM Status'!A7",majorDimension:'ROWS',values:projectsToRows(projects)});
-  await sheetsReq('POST',`/values/'Parking Lot'!A8:F50:clear`);
-  if(parking.length)await sheetsReq('PUT',`/values/'Parking Lot'!A8?valueInputOption=USER_ENTERED`,{range:"'Parking Lot'!A8",majorDimension:'ROWS',values:parkingToRows(parking)});
-  // Append completed tasks to the permanent, append-only Completed Log (never cleared)
-  try{
-    let forLog=merged;
-    if(oneWay){const m=new Map();(await cloudCompletedLog()).forEach(t=>m.set(String(t.id),t));merged.forEach(t=>m.set(String(t.id),t));forLog=[...m.values()];}
-    await appendCompletedLog(forLog);
-  }catch(e){}
-  return merged;
-}
-
-// ── Merge + history helpers ────────────────────────────────────────────────────
-function getTombstones(){try{return JSON.parse(ls.get('tt_deleted')||'[]');}catch{return[];}}
-function addTombstone(id){const now=Date.now();const t=getTombstones().filter(x=>now-x.ts<60*86400000);t.push({id:String(id),ts:now});ls.set('tt_deleted',JSON.stringify(t));}
-function tombstonedIds(){return new Set(getTombstones().map(x=>String(x.id)));}
-function indexById(arr){const m=new Map();arr.forEach(t=>m.set(String(t.id),t));return m;}
-// Migration: sheet rows without a stored ID get matched to existing app tasks by description+job
-function reconcileIds(appTasks,sheetTasks){
-  const used=new Set();const norm=v=>String(v||'').trim().toLowerCase();
-  sheetTasks.forEach(s=>{
-    if(s._noId){
-      const m=appTasks.find(a=>!used.has(String(a.id))&&norm(a.description)===norm(s.description)&&norm(a.job)===norm(s.job));
-      if(m){s.id=m.id;used.add(String(m.id));}
-    }
-    delete s._noId;
-  });
-  return sheetTasks;
-}
-// Push: app wins on conflict; sheet-only additions kept; app-deleted (tombstoned) removed
-function mergeForPush(appTasks,sheetTasks){
-  const tomb=tombstonedIds();const appIdx=indexById(appTasks);const out=[];
-  appTasks.forEach(t=>{if(!tomb.has(String(t.id)))out.push(t);});
-  sheetTasks.forEach(s=>{const id=String(s.id);if(!appIdx.has(id)&&!tomb.has(id))out.push(s);});
-  return out;
-}
-// Pull: sheet wins on conflict, but app-only fields (repeat bookkeeping) are kept
-function mergeForPull(appTasks,sheetTasks){
-  const tomb=tombstonedIds();const shIdx=indexById(sheetTasks);const appIdx=indexById(appTasks);const out=[];
-  sheetTasks.forEach(s=>{
-    const id=String(s.id);if(tomb.has(id))return;
-    const a=appIdx.get(id);
-    out.push(a?{...a,...s,lane:s.lane||a.lane,repeat:s.repeat||a.repeat,order:hasOrder(s)?s.order:a.order}:s);
-  });
-  appTasks.forEach(t=>{const id=String(t.id);if(!shIdx.has(id)&&!tomb.has(id))out.push(t);});
-  return out;
-}
-// Completed Log (append-only). Creates the tab on first use.
-async function getSpreadsheetMeta(){
-  await ensureToken();
-  const res=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${getSheetId()}?fields=sheets.properties.title`,{headers:{'Authorization':'Bearer '+accessToken}});
-  if(!res.ok)throw new Error('meta read failed');
-  return res.json();
-}
-async function ensureCompletedLog(){
-  const meta=await getSpreadsheetMeta();
-  const titles=(meta.sheets||[]).map(s=>s.properties.title);
-  if(titles.includes('Completed Log'))return;
-  await sheetsReq('POST',`:batchUpdate`,{requests:[{addSheet:{properties:{title:'Completed Log'}}}]});
-  await sheetsReq('PUT',`/values/'Completed Log'!A1?valueInputOption=USER_ENTERED`,{range:"'Completed Log'!A1",majorDimension:'ROWS',values:[['Completed Date','Task','Category','Job / Customer','Priority','Notes','Task ID']]});
-}
-async function appendCompletedLog(tasks){
-  const done=tasks.filter(t=>t.done||t.status==='Complete');
-  if(!done.length)return;
-  await ensureCompletedLog();
-  const existing=new Set();
-  try{const r=await sheetsReq('GET',`/values/'Completed Log'!G2:G100000`);(r.values||[]).forEach(row=>{if(row[0])existing.add(String(row[0]).trim());});}catch(e){}
-  const add=done.filter(t=>!existing.has(String(t.id)));
-  if(!add.length)return;
-  const rows=add.map(t=>[t.completedAt?fmtDate(t.completedAt):fmtDate(todayStr),t.description||'',t.category||'',t.job||'',t.priority||'',t.notes||'',String(t.id||'')]);
-  await sheetsReq('POST',`/values/'Completed Log'!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,{range:"'Completed Log'!A1",majorDimension:'ROWS',values:rows});
-}
-
-async function pullFromSheets(appTasks){
-  const[tR,pR,kR]=await Promise.all([sheetsReq('GET',`/values/${TASK_RANGE}`),sheetsReq('GET',`/values/'PM Status'!A7:K50`),sheetsReq('GET',`/values/'Parking Lot'!A8:F50`)]);
-  let sheetTasks=reconcileIds(appTasks||[],rowsToTasks(tR.values||[]));
-  const mergedTasks=normalizeAll(mergeForPull(appTasks||[],sheetTasks));
-  return{tasks:mergedTasks,projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
 }
 
 // ── Cloud storage (Firebase) ───────────────────────────────────────────────────
@@ -482,7 +333,7 @@ const byIdDesc=(a,b)=>{const na=Number(a.id),nb=Number(b.id);return(isFinite(nb)
 function applyRemote(c,snap){
   let items=snap.docs.map(d=>d.data());
   cloud.synced[c]=new Map(items.map(x=>[String(x.id),stableStr(cleanDoc(x))]));
-  if(c==='tasks')items=normalizeAll(items);else items.sort(byIdDesc);
+  if(c==='tasks')items=normalizeAll(items);else if(c==='projects')items=normalizeProjects(items);else items.sort(byIdDesc);
   state[c]=items;
   cloud.loaded[c]=true;
   if(!cloud.ready&&COLLS.every(k=>cloud.loaded[k])){cloud.ready=true;}
@@ -552,20 +403,6 @@ let renderSoonTimer=null,renderSoonRemote=false;
 // Batches status re-renders; skips while a form is open so typing isn't wiped
 function renderSoon(remote){if(remote)renderSoonRemote=true;clearTimeout(renderSoonTimer);renderSoonTimer=setTimeout(()=>{const r=renderSoonRemote;renderSoonRemote=false;if(state.modal||state.showSettings&&r){renderPending=true;return;}render();},30);}
 
-// ── Auto-push ──────────────────────────────────────────────────────────────────
-let autoPushTimer=null;
-function scheduleAutoPush(){
-  if(!isSheetsConfigured()||!ls.get('tt_authed'))return;
-  clearTimeout(autoPushTimer);
-  autoPushTimer=setTimeout(async()=>{
-    setState({syncStatus:'syncing',syncMsg:'Auto-saving to Sheets…'});
-    try{
-      const merged=await pushToSheets(state.tasks,state.projects,state.parking);
-      applySync({tasks:merged,syncStatus:'success',syncMsg:'Auto-saved ✓'});
-      setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
-    }catch(e){setState({syncStatus:null,syncMsg:''});}
-  },AUTOPUSH_DELAY);
-}
 function persist(){
   ls.set('tt_tasks',JSON.stringify(state.tasks));
   ls.set('tt_projects',JSON.stringify(state.projects));
@@ -574,6 +411,7 @@ function persist(){
 // Apply sync results (saves + renders) WITHOUT scheduling another auto-push, avoiding loops
 function applySync(updates){
   if(updates.tasks)updates.tasks=normalizeAll(updates.tasks);
+  if(updates.projects)updates.projects=normalizeProjects(updates.projects);
   Object.assign(state,updates);
   persist();
   if(updates.tasks||updates.projects||updates.parking)cloudWrite();
@@ -588,11 +426,10 @@ let state={
   collapsed:loadJSON('tt_collapsed',{}),
   focus:ls.get('tt_focus')||'all',
   tasks:normalizeAll(loadJSON('tt_tasks',SAMPLE_TASKS.map(t=>({...t,sample:true})))),
-  projects:loadJSON('tt_projects',SAMPLE_PROJECTS),
+  projects:normalizeProjects(loadJSON('tt_projects',SAMPLE_PROJECTS)),pmOpen:{},pmShowDoneList:false,
   parking:loadJSON('tt_parking',SAMPLE_PARKING),
   modal:null,filterCat:'All',search:'',pmShowCompleted:{},doneShowAll:false,
-  syncStatus:null,syncMsg:'',
-  showSettings:false,settingsTab:'cloud',
+  showSettings:false,
   toast:'',refocus:null,
 };
 let saveTimer=null;
@@ -604,38 +441,18 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 function setState(updates){
   const dataChanged=updates.tasks||updates.projects||updates.parking;
   if(updates.tasks)assignOrders(updates.tasks);
+  if(updates.projects)updates.projects=normalizeProjects(updates.projects);
   Object.assign(state,updates);
-  if(dataChanged){localSave();cloudWrite();scheduleAutoPush();}
+  if(dataChanged){localSave();cloudWrite();}
   render();
 }
 let toastTimer=null;
 function toast(msg){state.toast=msg;render();clearTimeout(toastTimer);toastTimer=setTimeout(()=>{state.toast='';render();},3200);}
 
-// ── Manual sync actions ────────────────────────────────────────────────────────
-async function syncPush(){
-  if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
-  clearTimeout(autoPushTimer);
-  setState({syncStatus:'syncing',syncMsg:'Pushing to Google Sheets…'});
-  try{
-    const merged=await pushToSheets(state.tasks,state.projects,state.parking);
-    applySync({tasks:merged,syncStatus:'success',syncMsg:'Merged & pushed ✓'});
-    setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-  }catch(e){setState({syncStatus:'error',syncMsg:'Push failed: '+e.message});}
-}
-async function syncPull(){
-  if(!isSheetsConfigured()){setState({showSettings:true,settingsTab:'sheets'});return;}
-  setState({syncStatus:'syncing',syncMsg:'Pulling from Google Sheets…'});
-  try{
-    const data=await pullFromSheets(state.tasks);
-    applySync({...data,syncStatus:'success',syncMsg:'Merged & pulled ✓'});
-    setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
-  }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
-}
-
 // ── Render (keeps scroll position and focus between re-renders) ────────────────
 let renderPending=false;
 function render(){
-  if(drag&&drag.active){renderPending=true;return;} // don't rebuild the board mid-drag
+  if((drag&&drag.active)||pjDrag){renderPending=true;return;} // don't rebuild the board mid-drag
   renderPending=false;
   const app=document.getElementById('app');
   const board=app.querySelector('.board');
@@ -658,33 +475,21 @@ function buildApp(){
   const open=state.tasks.filter(t=>!t.done);
   const counts={today:open.filter(t=>t.lane==='today').length,week:open.filter(t=>t.lane==='week').length,waiting:open.filter(t=>t.lane==='waiting').length,backlog:open.filter(t=>t.lane==='backlog').length,over:open.filter(t=>isOverdue(t.dueDate,t.status)).length};
   const wide=state.tab==='tasks';
-  return`<div style="padding-bottom:env(safe-area-inset-bottom);">${buildHeader(counts,openParking.length)}<div class="wrap${wide?' wide':''}">${buildSyncBar()}${state.tab==='tasks'?buildBoardTab(counts):''}${state.tab==='parking'?buildParkingTab(openParking):''}${state.tab==='pm'?buildPMTab():''}</div>${state.modal?buildModal():''}${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}</div>`;
+  return`<div style="padding-bottom:env(safe-area-inset-bottom);">${buildHeader(counts,openParking.length)}<div class="wrap${wide?' wide':''}">${buildCloudNotice()}${state.tab==='tasks'?buildBoardTab(counts):''}${state.tab==='parking'?buildParkingTab(openParking):''}${state.tab==='pm'?buildPMTab():''}</div>${state.modal?buildModal():''}${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}</div>`;
 }
 
-// ── Sync bar ───────────────────────────────────────────────────────────────────
-function buildSyncBar(){
-  const sheetsOk=isSheetsConfigured()&&!!ls.get('tt_authed');
-  const sColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.syncStatus]||'#374151';
-  const sBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.syncStatus]||'transparent';
-  const spin=s=>s==='syncing'?`<span class="spin">⟳</span> `:'';
-  const sheetsLabel=state.syncStatus?`<span style="font-size:12px;font-weight:600;color:${sColor};background:${sBg};padding:3px 9px;border-radius:99px;">${spin(state.syncStatus)}${esc(state.syncMsg)}</span>`:sheetsOk?`<span style="font-size:11px;color:#15803D;">✓ Sheets · auto-saves</span>`:`<span style="font-size:11px;color:#9CA3AF;">Sheets: not connected</span>`;
-  const cl=cloudStatus();
-  const cloudLabel=`<span style="font-size:12px;font-weight:700;color:${cl.color};background:${cl.bg};padding:3px 9px;border-radius:99px;" title="${esc(cloud.error||'')}">${cl.label}</span>`;
-  const cOn=!!cloud.user;
-  const sheetsBtn=(isSheetsConfigured()||!cOn)?`<button onclick="syncPush()" style="background:${cOn?'#fff':'#2563EB'};color:${cOn?'#374151':'#fff'};border:${cOn?'1.5px solid #D1D5DB':'none'};border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↑ Sheets</button>`:'';
-  const pullBtn=cOn?'':`<button onclick="syncPull()" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.syncStatus==='syncing'?' disabled':''}>↓ Pull</button>`;
-  const signInBtn=cOn||!cloud.available?'':`<button onclick="cloudSignIn()" style="background:#16A34A;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;">☁ Sign in to sync</button>`;
-  return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:8px 12px;margin-bottom:12px;">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <div style="display:flex;gap:10px;flex:1;min-width:120px;flex-wrap:wrap;align-items:center;">${cloudLabel}${(cOn&&!isSheetsConfigured()&&!state.syncStatus)?'':sheetsLabel}</div>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;">
-        ${signInBtn}${sheetsBtn}${pullBtn}
-        <button onclick="setState({showSettings:true})" aria-label="Settings" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:6px 10px;font-size:13px;">⚙</button>
-      </div>
-    </div>
-  </div>`;
+// Small status chip in the header (tap → settings, or sign in)
+function cloudChip(){
+  const map=!cloud.available?['Local only','#9CA3AF']:!cloud.user?['Sign in to sync','#FBBF24']:!cloud.ready?['Connecting…','#93C5FD']:cloud.error?['Sync problem','#F87171']:!cloud.online?['Offline — will sync','#FBBF24']:cloud.pending?['Saving…','#93C5FD']:['Synced','#4ADE80'];
+  const act=cloud.available&&!cloud.user?'cloudSignIn()':'setState({showSettings:true})';
+  return`<button onclick="${act}" title="${esc(cloud.error||'Cloud sync status')}" style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.08);border:none;border-radius:99px;padding:2px 9px 2px 7px;font-size:11px;font-weight:700;color:${map[1]};">☁ ${map[0]}</button>`;
 }
-
+// Banner only when something needs attention
+function buildCloudNotice(){
+  if(cloud.available&&!cloud.user)return`<div class="nudge" style="background:#FFFBEB;border-color:#FDE68A;color:#92400E;">☁ You’re not signed in, so changes are only saved on this device.<button onclick="cloudSignIn()" style="background:#16A34A;">Sign in to sync</button></div>`;
+  if(cloud.user&&cloud.error)return`<div class="nudge" style="background:#FEF2F2;border-color:#FECACA;color:#991B1B;">☁ Sync problem: ${esc(cloud.error)}<button onclick="setState({showSettings:true})" style="background:#DC2626;">Details</button></div>`;
+  return'';
+}
 function cloudStatus(){
   if(!cloud.available)return{label:'☁ Local only',color:'#6B7280',bg:'#F3F4F6'};
   if(!cloud.user)return{label:'☁ Not signed in — saved on this device only',color:'#A16207',bg:'#FEF9C3'};
@@ -713,7 +518,7 @@ function buildCloudSettings(){
       <div style="margin-bottom:5px;"><strong>Instant saves</strong> — every change saves on its own, right away. No sync buttons.</div>
       <div style="margin-bottom:5px;"><strong>Every device</strong> — sign in on your phone and computer; changes show up on both within seconds.</div>
       <div style="margin-bottom:5px;"><strong>Offline</strong> — keep working without signal; changes upload when you’re back online.</div>
-      <div><strong>Google Sheet</strong> — optional now. If connected, it gets a one-way copy for reporting, plus the Completed Log.</div>
+      <div><strong>Completed Log</strong> — every finished card is kept in your cloud log, even after you clear it from the board.</div>
     </div>
   </div>
   <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
@@ -725,78 +530,23 @@ function buildCloudSettings(){
 
 // ── Settings page ──────────────────────────────────────────────────────────────
 function buildSettingsPage(){
-  const tabs=[{id:'cloud',label:'Cloud'},{id:'sheets',label:'Google Sheets'}];
   return`
 <div style="background:#1F2937;padding:14px 16px;position:sticky;top:0;z-index:50;">
   <div style="max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px;">
     <button onclick="setState({showSettings:false})" style="background:none;border:none;color:#9CA3AF;font-size:22px;line-height:1;padding:0 4px 2px;">←</button>
     <span style="font-size:16px;font-weight:700;color:#fff;">Settings</span>
   </div>
-  <div style="max-width:720px;margin:0 auto;padding:8px 0 0;display:flex;gap:2px;">
-    ${tabs.map(t=>`<button onclick="setState({settingsTab:'${t.id}'})" style="flex:1;padding:8px 4px;background:${state.settingsTab===t.id?'#fff':'transparent'};color:${state.settingsTab===t.id?'#1F2937':'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;">${t.label}</button>`).join('')}
-  </div>
 </div>
 <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
-  ${state.settingsTab==='cloud'?buildCloudSettings():buildSheetsSettings()}
+  ${buildCloudSettings()}
 </div>${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}`;
 }
-function buildSheetsSettings(){
-  const configured=isSheetsConfigured();
-  const authed=!!ls.get('tt_authed');
-  const status=!configured?{color:'#A16207',bg:'#FEF9C3',icon:'⚠',label:'Not configured',sub:'Enter your credentials below.'}:authed?{color:'#15803D',bg:'#DCFCE7',icon:'✓',label:'Connected & authenticated',sub:'Auto-push active — changes sync automatically.'}:{color:'#2563EB',bg:'#DBEAFE',icon:'→',label:'Credentials saved — sign in to activate',sub:'Tap "Sign in with Google" below.'};
-  return`
-  <div style="background:${status.bg};border:1px solid ${status.color}30;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-    <div style="font-size:14px;font-weight:700;color:${status.color};">${status.icon} ${status.label}</div>
-    <div style="font-size:12px;color:${status.color};opacity:0.85;margin-top:3px;">${status.sub}</div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Credentials</div>
-    <form onsubmit="saveSheetsSettings(event)">
-      <div style="margin-bottom:14px;">${lbl('OAuth Client ID')}<input id="cfg-clientid" type="password" value="${esc(getClientId())}" placeholder="Paste your OAuth Client ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"></div>
-      <div style="margin-bottom:16px;">${lbl('Spreadsheet ID')}<input id="cfg-sheetid" type="password" value="${esc(getSheetId())}" placeholder="Paste your Google Sheet ID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"></div>
-      <button type="submit" style="width:100%;background:#1F2937;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save Credentials</button>
-    </form>
-  </div>
-  ${configured?`
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:6px;">Google Account</div>
-    <div style="font-size:13px;color:#6B7280;margin-bottom:12px;">Authorizes read and write access to your Google Sheet.</div>
-    ${authed?`<button onclick="signOut()" style="width:100%;background:#fff;color:#DC2626;border:1.5px solid #FEE2E2;border-radius:10px;padding:11px;font-size:13px;font-weight:700;">Sign out of Google</button>`:`<button onclick="signIn()" style="width:100%;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Sign in with Google →</button>`}
-  </div>`:''}
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Sheets sync works</div>
-    <div style="font-size:13px;color:#374151;line-height:1.75;">
-      <div style="margin-bottom:5px;"><strong>🔄 Auto-push</strong> — Syncs 8 seconds after any change. Runs silently.</div>
-      <div style="margin-bottom:5px;"><strong>↑ Sheets</strong> — Manual immediate push to Google Sheets.</div>
-      <div style="margin-bottom:5px;"><strong>↓ Pull</strong> — Load sheet edits back into the app.</div>
-      <div><strong>🗂 Board columns</strong> — On the Daily Tasks tab, column L holds each card’s board column, M its repeat setting, and N its position in the lane (so your order matches on every device). Columns A–K are unchanged.</div>
-    </div>
-  </div>
-  ${configured?`<button onclick="clearSheetsConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Google credentials</button>`:''}`;
-}
-
-// ── Settings actions ───────────────────────────────────────────────────────────
-window.saveSheetsSettings=function(e){
-  e.preventDefault();
-  const clientId=document.getElementById('cfg-clientid').value.trim();
-  const sheetId=document.getElementById('cfg-sheetid').value.trim();
-  if(!clientId||!sheetId){toast('Please fill in both fields.');return;}
-  ls.set('tt_clientid',clientId);ls.set('tt_sheetid',sheetId);
-  tokenClient=null;
-  setState({showSettings:true,settingsTab:'sheets',syncStatus:'success',syncMsg:'Credentials saved ✓'});
-  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
-  initTokenClient();
-};
-window.signIn=function(){initTokenClient();if(!tokenClient){toast('Please save your Client ID first.');return;}tokenClient.requestAccessToken({prompt:'consent'});};
-window.signOut=function(){if(accessToken&&window.google)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;ls.del('tt_authed');setState({showSettings:true,settingsTab:'sheets',syncStatus:null,syncMsg:''});};
-window.clearSheetsConfig=function(){if(!confirm('Remove Google credentials?'))return;window.signOut();ls.del('tt_clientid');ls.del('tt_sheetid');setState({showSettings:true,settingsTab:'sheets'});};
-
 // ── Header ─────────────────────────────────────────────────────────────────────
 function buildHeader(counts,parkCount){
   const tabs=[{id:'tasks',label:'Board',badge:counts.today,color:'#2563EB'},{id:'parking',label:'Parking',badge:parkCount,color:'#F97316'},{id:'pm',label:'Projects',badge:0,color:'#7E22CE'}];
-  const addBtns={tasks:`<div style="display:flex;align-items:center;"><button onclick="openImport()" title="Import from a list, an email, or a CSV / Excel file" style="background:transparent;color:#E5E7EB;border:1.5px solid #4B5563;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;margin-right:6px;">⤓ Import</button><button onclick="openTask(null,'backlog')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Card</button></div>`,parking:`<button onclick="openModalType('park')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openProject(null)" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
+  const addBtns={tasks:`<div style="display:flex;align-items:center;"><button onclick="openImport()" title="Import from a list, an email, or a CSV / Excel file" style="background:transparent;color:#E5E7EB;border:1.5px solid #4B5563;border-radius:8px;padding:7px 10px;font-size:13px;font-weight:700;margin-right:6px;white-space:nowrap;">⤓ Import</button><button onclick="openTask(null,'backlog')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;white-space:nowrap;">+ Card</button></div>`,parking:`<button onclick="openModalType('park')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openProject(null)" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
   const mw=state.tab==='tasks'?'none':'720px';
-  return`<div style="background:#1F2937;position:sticky;top:0;z-index:50;"><div style="max-width:${mw};margin:0 auto;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Task Tracker</div><div style="font-size:11px;color:#9CA3AF;">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div></div>${addBtns[state.tab]||''}</div><div style="max-width:${state.tab==='tasks'?'720px':mw};margin:0 ${state.tab==='tasks'?'0':'auto'};padding:8px 14px 0;display:flex;gap:2px;">${tabs.map(t=>`<button onclick="setTab('${t.id}')" style="flex:1;padding:9px 4px;background:${state.tab===t.id?(t.id==='tasks'?'#F1F5F9':'#fff'):'transparent'};color:${state.tab===t.id?t.color:'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;">${t.label}${t.badge>0?`<span style="background:${t.color};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 6px;">${t.badge}</span>`:''}</button>`).join('')}</div></div>`;
+  return`<div style="background:#1F2937;position:sticky;top:0;z-index:50;"><div style="max-width:${mw};margin:0 auto;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Task Tracker</div><div style="font-size:11px;color:#9CA3AF;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}${cloudChip()}</div></div><div style="display:flex;align-items:center;gap:6px;"><button onclick="setState({showSettings:true})" aria-label="Settings" title="Settings" style="background:transparent;color:#9CA3AF;border:none;font-size:17px;padding:4px 6px;">⚙</button>${addBtns[state.tab]||''}</div></div><div style="max-width:${state.tab==='tasks'?'720px':mw};margin:0 ${state.tab==='tasks'?'0':'auto'};padding:8px 14px 0;display:flex;gap:2px;">${tabs.map(t=>`<button onclick="setTab('${t.id}')" style="flex:1;padding:9px 4px;background:${state.tab===t.id?(t.id==='tasks'?'#F1F5F9':'#fff'):'transparent'};color:${state.tab===t.id?t.color:'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;">${t.label}${t.badge>0?`<span style="background:${t.color};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 6px;">${t.badge}</span>`:''}</button>`).join('')}</div></div>`;
 }
 
 // ── Board Tab ──────────────────────────────────────────────────────────────────
@@ -1197,12 +947,12 @@ document.addEventListener('paste',e=>{
   e.preventDefault();openImport(text,inp.id.replace('qa-',''));
 });
 window.pullDueIntoToday=()=>{let n=0;const tasks=state.tasks.map(t=>{if(!t.done&&(t.lane==='backlog'||t.lane==='week')&&t.dueDate&&t.dueDate<=todayStr){n++;return{...applyLane(t,'today'),order:topOrder('today')-n};}return t;});setState({tasks});toast(`Moved ${n} card${n!==1?'s':''} to Today`);};
-window.deleteTask=id=>{if(confirm('Delete this card?')){addTombstone(id);setState({tasks:state.tasks.filter(t=>String(t.id)!==String(id)),modal:null});}};
+window.deleteTask=id=>{if(confirm('Delete this card?')){setState({tasks:state.tasks.filter(t=>String(t.id)!==String(id)),modal:null});}};
 window.archiveCompleted=async()=>{
   const done=state.tasks.filter(t=>t.done);
   if(!done.length)return;
   if(cloudOn()){
-    if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nThey stay permanently in your cloud Completed Log (and on the Sheet's Completed Log if connected).`))return;
+    if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nThey stay permanently in your cloud Completed Log.`))return;
     // Make sure every one is in the cloud log before removing it from the board
     const ops=done.map(t=>{cloud.logged.add(String(t.id));return['set',collRef('completedLog').doc(String(t.id)),logEntry(t)];});
     await commitOps(ops);
@@ -1212,15 +962,10 @@ window.archiveCompleted=async()=>{
     toast(`Archived ${ids.size} completed card${ids.size!==1?'s':''} ✓`);
     return;
   }
-  if(!(isSheetsConfigured()&&ls.get('tt_authed'))){toast('Connect Google Sheets first so completed cards are saved to your Completed Log before clearing.');return;}
-  if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nThey stay permanently in the Completed Log tab on your Google Sheet.`))return;
-  setState({syncStatus:'syncing',syncMsg:'Saving to Completed Log…'});
-  try{const merged=await pushToSheets(state.tasks,state.projects,state.parking);applySync({tasks:merged});}
-  catch(e){setState({syncStatus:'error',syncMsg:'Could not reach Sheets — nothing was cleared.'});return;}
-  const ids=new Set(state.tasks.filter(t=>t.done).map(t=>String(t.id)));
-  ids.forEach(id=>addTombstone(id));
-  applySync({tasks:state.tasks.filter(t=>!ids.has(String(t.id))),syncStatus:'success',syncMsg:'Completed cards archived to log ✓'});
-  setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
+  if(!confirm(`Clear ${done.length} completed card(s) from the board?\n\nTip: sign in to cloud sync so finished cards are kept in your Completed Log.`))return;
+  const ids=new Set(done.map(t=>String(t.id)));
+  setState({tasks:state.tasks.filter(t=>!ids.has(String(t.id)))});
+  toast(`Cleared ${ids.size} completed card${ids.size!==1?'s':''}`);
 };
 
 // ── Parking Tab ────────────────────────────────────────────────────────────────
@@ -1231,24 +976,127 @@ function buildParkingTab(openItems){
   return`<div style="background:#FFF7ED;border:1.5px solid #FED7AA;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;"><span style="font-size:20px;">🅿</span><div><div style="font-size:13px;font-weight:700;color:#C2410C;margin-bottom:2px;">Before you deal with it — park it first.</div><div style="font-size:12px;color:#9A3412;line-height:1.5;">5 seconds: what were you doing, what interrupted you, what's your next step. Tap <strong>→ Card</strong> to put it on the board.</div></div></div><div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Open — ${openItems.length} item${openItems.length!==1?'s':''}</div>${openHTML}${clearedHTML}`;
 }
 
-// ── PM Tab ─────────────────────────────────────────────────────────────────────
-function buildPMTab(){
-  const hCounts=PM_HEALTH.map(h=>({h,c:state.projects.filter(p=>p.health===h).length})).filter(x=>x.c>0);
-  const summaryCards=hCounts.map(({h,c})=>{const hc=HEALTH_COLORS[h];return`<div style="background:${hc.bg};border:1px solid ${hc.text}30;border-radius:10px;padding:10px 13px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">${hc.icon}</span><div><div style="font-size:20px;font-weight:800;color:${hc.text};">${c}</div><div style="font-size:11px;color:${hc.text};font-weight:600;">${h}</div></div></div>`;}).join('');
-  const projectCards=state.projects.map(proj=>{
-    const pid=esc(String(proj.id));
-    const hc=HEALTH_COLORS[proj.health]||HEALTH_COLORS['On Track'];
-    const key=(proj.name||'').toLowerCase().split(' ')[0];
-    const linked=key?state.tasks.filter(t=>t.job&&t.job.toLowerCase().includes(key)):[];
-    const sorted=linked.slice().sort((a,b)=>{if(a.done!==b.done)return a.done?1:-1;return(PRI_ORD[a.priority]??1)-(PRI_ORD[b.priority]??1);});
-    const doneCount=linked.filter(t=>t.done).length;
-    const showDone=!!state.pmShowCompleted[proj.id];
-    const visible=showDone?sorted:sorted.filter(t=>!t.done);
-    const dl=daysLeft(proj.targetEnd);const dlText=dl===null?'':(dl<0?`${Math.abs(dl)}d overdue`:`${dl}d left`);const dlColor=dl===null?'':(dl<0?'#DC2626':dl<7?'#A16207':'#15803D');
-    return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:12px;"><div style="padding:11px 13px;background:${hc.bg};border-bottom:2px solid ${hc.text}25;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;"><div><div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap;"><span style="font-size:15px;">${hc.icon}</span><span style="font-size:15px;font-weight:800;color:#111827;">${esc(proj.name)}</span><span style="font-size:12px;color:#6B7280;">${esc(proj.jobNum)}</span></div><div style="font-size:12px;color:#6B7280;">PM: <strong style="color:#374151;">${esc(proj.pm)}</strong> · ${fmtDate(proj.startDate)} → ${fmtDate(proj.targetEnd)} ${dlText?`<strong style="color:${dlColor};">(${dlText})</strong>`:''}</div></div><div style="display:flex;gap:4px;flex-shrink:0;"><button onclick="openProject('${pid}')" style="background:none;border:1px solid #E5E7EB;border-radius:6px;padding:5px 9px;font-size:12px;color:#6B7280;">Edit</button><button onclick="deleteProject('${pid}')" style="background:none;border:1px solid #FEE2E2;border-radius:6px;padding:5px 8px;font-size:12px;color:#DC2626;">✕</button></div></div></div><div style="padding:12px 13px;"><div style="margin-bottom:10px;"><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Progress</div><div style="display:flex;align-items:center;gap:10px;"><div style="flex:1;height:8px;background:#E5E7EB;border-radius:99px;overflow:hidden;"><div style="width:${proj.pctComplete}%;height:100%;background:${proj.pctComplete>=80?'#16A34A':proj.pctComplete>=50?'#2563EB':'#F97316'};border-radius:99px;"></div></div><span style="font-size:13px;font-weight:700;color:#374151;min-width:34px;">${proj.pctComplete}%</span></div>${proj.blockers?`<div style="margin-top:7px;font-size:12px;color:#B91C1C;background:#FEF2F2;border-radius:6px;padding:5px 9px;">⚠ ${esc(proj.blockers)}</div>`:''}</div><div><div style="font-size:11px;font-weight:600;color:#9CA3AF;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.05em;">Linked Cards (${linked.length}) <span style="background:#DBEAFE;color:#1D4ED8;border-radius:99px;padding:1px 6px;font-size:10px;">auto</span>${doneCount>0?`<button onclick="togglePMCompleted('${pid}')" style="float:right;background:none;border:none;color:#2563EB;font-size:11px;font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0;">${showDone?'Hide':'Show'} ${doneCount} completed</button>`:''}</div>${linked.length?`<div style="display:flex;flex-direction:column;gap:6px;">${visible.map(t=>`<div onclick="openTask('${esc(String(t.id))}')" style="cursor:pointer;display:flex;align-items:flex-start;gap:7px;padding:6px 8px;background:#F8FAFC;border-radius:7px;"><span style="margin-top:2px;width:15px;height:15px;border-radius:4px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;background:${t.done?'#16A34A':'#D1D5DB'};">${t.done?'✓':''}</span><div style="flex:1;min-width:0;"><div style="font-size:13px;color:${t.done?'#9CA3AF':'#374151'};font-weight:600;text-decoration:${t.done?'line-through':'none'};margin-bottom:3px;word-break:break-word;">${esc(t.description)}</div><div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;">${badge(laneLabel(t.lane),{bg:'#EEF2FF',text:'#4338CA'})}${badge(t.priority,PRI_COLORS[t.priority]||PRI_COLORS.Medium)}${t.dueDate?`<span style="font-size:11px;color:${isOverdue(t.dueDate,t.status)?'#DC2626':'#6B7280'};">${fmtDate(t.dueDate)}</span>`:''}</div></div></div>`).join('')}</div>`:`<div style="font-size:12px;color:#9CA3AF;font-style:italic;">No cards linked yet — add a card with this project name in its Job field.</div>`}</div></div><div style="padding:5px 13px 9px;border-top:1px solid #F3F4F6;"><span style="font-size:11px;color:#9CA3AF;">Last check-in: ${fmtDate(proj.lastCheckin)||'—'}</span></div></div>`;
-  }).join('');
-  return`${summaryCards?`<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">${summaryCards}</div>`:''} ${state.projects.length===0?`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No projects yet.</div>`:projectCards}`;
+// ── Projects Tab (ordered list — drag ⋮⋮ to reorder; the order syncs to the cloud) ──
+const HEALTH_DOT={"On Track":"#16A34A","At Risk":"#EAB308","Delayed":"#DC2626","On Hold":"#94A3B8","Complete":"#16A34A"};
+function projHasOrder(p){return typeof p.order==='number'&&isFinite(p.order);}
+// Projects without a saved position keep their old place (newest first), then everything sorts by position
+function normalizeProjects(arr){
+  const list=(arr||[]).map(p=>({...p}));
+  let max=Math.max(0,...list.filter(projHasOrder).map(p=>p.order));
+  list.filter(p=>!projHasOrder(p)).sort(byIdDesc).forEach(p=>{max+=1000;p.order=max;});
+  return list.sort((a,b)=>a.order-b.order);
 }
+function activeProjects(){return state.projects.filter(p=>p.health!=='Complete');}
+function projectCardsFor(p){
+  const name=String(p.name||'').toLowerCase().trim(),num=String(p.jobNum||'').toLowerCase().replace(/^#/,'').trim(),first=name.split(/\s+/)[0]||'';
+  return state.tasks.filter(t=>{const j=String(t.job||'').toLowerCase(),d=String(t.description||'').toLowerCase();return(num&&(j.includes(num)||d.includes(num)))||(name&&j.includes(name))||(first.length>=3&&j.includes(first));});
+}
+function projRow(p,draggable){
+  const pid=esc(String(p.id));
+  const pct=Math.max(0,Math.min(100,+p.pctComplete||0));
+  const barColor=pct>=80?'#16A34A':pct>=50?'#2563EB':'#F97316';
+  const dl=daysLeft(p.targetEnd);
+  const dlText=dl===null?'No end date':dl<0?`${Math.abs(dl)}d overdue`:dl===0?'Due today':`${dl}d left`;
+  const dlColor=dl===null?'#94A3B8':dl<0?'#DC2626':dl<7?'#A16207':'#475569';
+  const linked=projectCardsFor(p),open=linked.filter(t=>!t.done);
+  const since=p.lastCheckin?-daysLeft(p.lastCheckin):null;
+  const isOpen=!!(state.pmOpen||{})[p.id];
+  const pills=[
+    open.length?`<span class="pill" style="background:#EEF2FF;color:#4338CA;">${open.length} open card${open.length!==1?'s':''}</span>`:'',
+    p.blockers&&p.health!=='Complete'?`<span class="pill" style="background:#FEE2E2;color:#B91C1C;">⚠ Blocker</span>`:'',
+    since!==null&&since>=7&&p.health!=='Complete'?`<span class="pill" style="background:#FEF9C3;color:#A16207;">Checked in ${since}d ago</span>`:'',
+  ].join('');
+  const showDone=!!state.pmShowCompleted[p.id];
+  const sorted=linked.slice().sort((a,b)=>a.done!==b.done?(a.done?1:-1):(PRI_ORD[a.priority]??1)-(PRI_ORD[b.priority]??1));
+  const visible=showDone?sorted:sorted.filter(t=>!t.done);
+  const doneCount=linked.length-open.length;
+  const details=isOpen?`<div class="pj-detail">
+    ${p.blockers?`<div style="font-size:12.5px;color:#B91C1C;background:#FEF2F2;border-radius:7px;padding:7px 10px;margin-bottom:10px;">⚠ ${esc(p.blockers)}</div>`:''}
+    <div style="font-size:12px;color:#64748B;margin-bottom:10px;">${p.startDate?fmtDate(p.startDate):'—'} → ${p.targetEnd?fmtDate(p.targetEnd):'—'} · <strong style="color:${dlColor};">${dlText}</strong> · Last check-in: ${p.lastCheckin?fmtDate(p.lastCheckin):'—'}</div>
+    <div style="font-size:11px;font-weight:700;color:#94A3B8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Linked cards (${linked.length})${doneCount?` <button onclick="togglePMCompleted('${pid}')" style="float:right;background:none;border:none;color:#2563EB;font-size:11px;font-weight:700;text-transform:none;letter-spacing:0;">${showDone?'Hide':'Show'} ${doneCount} done</button>`:''}</div>
+    ${linked.length?`<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;">${visible.map(t=>`<div onclick="openTask('${esc(String(t.id))}')" style="cursor:pointer;display:flex;gap:7px;align-items:center;padding:6px 8px;background:#F8FAFC;border-radius:7px;"><span style="width:14px;height:14px;border-radius:4px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;background:${t.done?'#16A34A':'#CBD5E1'};">${t.done?'✓':''}</span><span style="flex:1;min-width:0;font-size:13px;font-weight:600;color:${t.done?'#94A3B8':'#1F2937'};text-decoration:${t.done?'line-through':'none'};word-break:break-word;">${esc(t.description)}</span>${badge(laneLabel(t.lane),{bg:'#EEF2FF',text:'#4338CA'})}${t.dueDate&&!t.done?`<span style="font-size:11px;color:${isOverdue(t.dueDate,t.status)?'#DC2626':'#64748B'};">${esc(fmtShort(t.dueDate))}</span>`:''}</div>`).join('')}</div>`:`<div style="font-size:12px;color:#94A3B8;font-style:italic;margin-bottom:10px;">No linked cards yet. Put the project name or job # in a card’s Job field.</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button onclick="projCheckin('${pid}')" style="background:#DCFCE7;color:#15803D;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;">✓ Checked in today</button>
+      <button onclick="openTask(null,'week');setTimeout(()=>{const j=document.querySelector('#modal-sheet input[name=job]');if(j)j.value=${esc(JSON.stringify([p.name,p.jobNum].filter(Boolean).join(' / ')))};},0)" style="background:#EEF2FF;color:#4338CA;border:none;border-radius:7px;padding:7px 11px;font-size:12px;font-weight:700;">+ Card for this project</button>
+      <span style="flex:1;"></span>
+      <button onclick="openProject('${pid}')" style="background:#fff;border:1.5px solid #E5E7EB;border-radius:7px;padding:6px 11px;font-size:12px;color:#374151;font-weight:600;">Edit</button>
+      <button onclick="deleteProject('${pid}')" style="background:#fff;border:1.5px solid #FEE2E2;border-radius:7px;padding:6px 10px;font-size:12px;color:#DC2626;font-weight:600;">Delete</button>
+    </div>
+  </div>`:'';
+  return`<div class="pj${isOpen?' open':''}" data-pid="${pid}">
+    <div class="pj-row" onclick="togglePj('${pid}')">
+      ${draggable?`<span class="pj-handle" title="Drag to reorder" onclick="event.stopPropagation()">⋮⋮</span>`:`<span class="pj-handle off"></span>`}
+      <span class="pj-dot" title="${esc(p.health||'On Track')}" style="background:${HEALTH_DOT[p.health]||HEALTH_DOT['On Track']};"></span>
+      <div class="pj-name"><b>${esc(p.name)}</b><span>${[p.jobNum,p.pm?`PM ${p.pm}`:'',p.health&&p.health!=='On Track'?p.health:''].filter(Boolean).map(esc).join(' · ')}</span></div>
+      <div class="pj-stats">
+        <div class="pj-prog"><div class="bar"><i style="width:${pct}%;background:${barColor};"></i></div><span>${pct}%</span></div>
+        <span class="pj-due" style="color:${dlColor};">${dlText}</span>
+        ${pills}
+      </div>
+      <span class="pj-chev">${isOpen?'▾':'▸'}</span>
+    </div>
+    ${details}
+  </div>`;
+}
+function buildPMTab(){
+  const act=activeProjects(),done=state.projects.filter(p=>p.health==='Complete');
+  const hCounts=PM_HEALTH.filter(h=>h!=='Complete').map(h=>({h,c:act.filter(p=>p.health===h).length})).filter(x=>x.c>0);
+  const chips=hCounts.map(({h,c})=>`<span style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #E5E7EB;border-radius:99px;padding:5px 11px;font-size:12px;font-weight:700;color:#374151;"><span class="pj-dot" style="background:${HEALTH_DOT[h]};"></span>${c} ${h}</span>`).join('');
+  if(!state.projects.length)return`<div style="text-align:center;color:#9CA3AF;padding:40px 0;font-size:14px;">No projects yet. Tap <strong>+ Project</strong> to add one.</div>`;
+  return`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">${chips}<span style="margin-left:auto;font-size:11.5px;color:#94A3B8;">Drag ⋮⋮ to put them in priority order</span></div>
+    <div class="pj-list" id="pj-list">${act.length?act.map(p=>projRow(p,true)).join(''):`<div style="font-size:13px;color:#94A3B8;padding:16px;text-align:center;">No active projects.</div>`}</div>
+    ${done.length?`<button onclick="setState({pmShowDoneList:!state.pmShowDoneList})" style="margin:16px 0 8px;background:none;border:none;font-size:11px;font-weight:800;color:#94A3B8;text-transform:uppercase;letter-spacing:.06em;">${state.pmShowDoneList?'▾':'▸'} Completed (${done.length})</button>${state.pmShowDoneList?`<div class="pj-list" style="opacity:.7;">${done.map(p=>projRow(p,false)).join('')}</div>`:''}`:''}`;
+}
+window.togglePj=id=>{if(suppressClick)return;setState({pmOpen:{...(state.pmOpen||{}),[id]:!(state.pmOpen||{})[id]}});};
+window.projCheckin=id=>{setState({projects:state.projects.map(p=>String(p.id)===String(id)?{...p,lastCheckin:todayStr}:p)});toast('Check-in logged for today');};
+// Reorder: `index` = drop position among the active projects (excluding the one being moved)
+function moveProject(id,index){
+  const calc=()=>{
+    const list=activeProjects().filter(p=>String(p.id)!==String(id));
+    const before=list[index-1],after=list[index];
+    if(!before&&!after)return{v:1000};if(!before)return{v:after.order-1000};if(!after)return{v:before.order+1000};
+    return{v:(before.order+after.order)/2,gap:after.order-before.order};
+  };
+  let r=calc();
+  if(r.gap!==undefined&&r.gap<0.001){state.projects=state.projects.map((p,i)=>({...p,order:(i+1)*1000}));r=calc();}
+  setState({projects:state.projects.map(p=>String(p.id)===String(id)?{...p,order:r.v}:p)});
+}
+let pjDrag=null;
+function movePj(y){
+  const d=pjDrag;d.y=y;d.ghost.style.transform=`translate(${d.left}px,${y-d.offY}px)`;
+  const rows=[...d.list.querySelectorAll(':scope > .pj')].filter(x=>x!==d.row);
+  let target=null;for(const r of rows){const b=r.getBoundingClientRect();if(y<b.top+b.height/2){target=r;break;}}
+  if(target){if(d.ph.nextSibling!==target)d.list.insertBefore(d.ph,target);}else if(d.list.lastChild!==d.ph)d.list.appendChild(d.ph);
+}
+function endPj(commit){
+  const d=pjDrag;if(!d)return;pjDrag=null;
+  cancelAnimationFrame(d.raf);document.body.classList.remove('is-dragging');d.ghost.remove();
+  const idx=[...d.list.children].filter(c=>c===d.ph||(c.classList.contains('pj')&&c!==d.row)).indexOf(d.ph);
+  d.ph.remove();d.row.style.display='';
+  suppressClick=true;setTimeout(()=>suppressClick=false,50);
+  if(commit&&idx>=0)moveProject(d.id,idx);else render();
+  if(renderPending)render();
+}
+document.addEventListener('pointerdown',e=>{
+  const h=e.target.closest&&e.target.closest('.pj-handle:not(.off)');if(!h||state.modal)return;
+  const row=h.closest('.pj');if(!row)return;
+  e.preventDefault();
+  const r=row.getBoundingClientRect();
+  const ghost=row.cloneNode(true);ghost.classList.add('ghost');ghost.style.width=r.width+'px';ghost.querySelectorAll('[onclick]').forEach(x=>x.removeAttribute('onclick'));document.body.appendChild(ghost);
+  const ph=document.createElement('div');ph.className='pj-ph';ph.style.height=r.height+'px';
+  row.parentNode.insertBefore(ph,row);row.style.display='none';
+  pjDrag={id:row.dataset.pid,row,ghost,ph,offY:e.clientY-r.top,left:r.left,list:row.parentNode,y:e.clientY};
+  document.body.classList.add('is-dragging');
+  if(e.pointerType!=='mouse'&&navigator.vibrate)try{navigator.vibrate(10);}catch{}
+  movePj(e.clientY);
+  const loop=()=>{if(!pjDrag)return;const y=pjDrag.y,vh=window.innerHeight;if(y<130)window.scrollBy(0,-Math.ceil((130-y)/5));else if(y>vh-70)window.scrollBy(0,Math.ceil((y-(vh-70))/5));movePj(y);pjDrag.raf=requestAnimationFrame(loop);};
+  pjDrag.raf=requestAnimationFrame(loop);
+});
+document.addEventListener('pointermove',e=>{if(pjDrag){e.preventDefault();movePj(e.clientY);}});
+document.addEventListener('touchmove',e=>{if(pjDrag)e.preventDefault();},{passive:false});
+document.addEventListener('pointerup',()=>endPj(true));
+document.addEventListener('pointercancel',()=>endPj(false));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&pjDrag)endPj(false);});
 
 // ── Modals ─────────────────────────────────────────────────────────────────────
 function buildModal(){
@@ -1327,20 +1175,17 @@ window.submitTaskForm=(e,id)=>{
   if(spawned)toast(`↻ Next one added to ${laneLabel(spawned.lane)} — due ${fmtShort(spawned.dueDate)}`);
 };
 window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);setState({parking:[{id:Date.now(),time:nowTime(),wasWorkingOn:fd.get('wasWorkingOn'),interruption:fd.get('interruption'),nextStep:fd.get('nextStep'),priority:window._parkPri||'Medium',cleared:false},...state.parking],modal:null});window._parkPri=null;};
-window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!String(proj.name||'').trim())return;setState({projects:id?state.projects.map(p=>String(p.id)===String(id)?proj:p):[proj,...state.projects],modal:null});};
-window.syncPush=syncPush;
-window.syncPull=syncPull;
+window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const prev=id?state.projects.find(p=>String(p.id)===String(id)):null;const proj={...(prev||{}),id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!prev){const o=state.projects.filter(projHasOrder).map(p=>p.order);proj.order=o.length?Math.min(...o)-1000:1000;}if(!String(proj.name||'').trim())return;setState({projects:id?state.projects.map(p=>String(p.id)===String(id)?proj:p):[proj,...state.projects],modal:null});};
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.modal)setState({modal:null});});
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
-window.addEventListener('load',()=>{if(isSheetsConfigured())initTokenClient();});
-ls.del('tt_asana_pat');ls.del('tt_asana_project'); // Asana removed — clear the stored token
+['tt_asana_pat','tt_asana_project','tt_clientid','tt_sheetid','tt_authed','tt_hdr_v8','tt_hdr_v9','tt_deleted'].forEach(k=>ls.del(k)); // old Asana / Google Sheets settings
 persist();
 render();
 initCloud();
 
 // ── Service Worker (network-first so updates show up right away) ───────────────
-if('serviceWorker' in navigator){const sw=`const C='tt-v11';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>clients.claim())));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;}).catch(()=>caches.match(e.request)));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
+if('serviceWorker' in navigator){const sw=`const C='tt-v13';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>clients.claim())));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;}).catch(()=>caches.match(e.request)));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
 </script>
 <script>
 const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='32' y='44' width='36' height='104' rx='8' fill='%234B5563'/%3E%3Crect x='78' y='44' width='36' height='76' rx='8' fill='%232563EB'/%3E%3Crect x='124' y='44' width='36' height='56' rx='8' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
