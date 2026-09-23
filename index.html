@@ -156,7 +156,6 @@ const CAT_COLORS={"Service Calendar":{bg:"#DBEAFE",text:"#1D4ED8",dot:"#3B82F6"}
 const PRI_COLORS={High:{bg:"#FEE2E2",text:"#B91C1C"},Medium:{bg:"#FEF9C3",text:"#A16207"},Low:{bg:"#DCFCE7",text:"#15803D"}};
 const STATUS_COLORS={"Not Started":{bg:"#F1F5F9",text:"#475569"},"In Progress":{bg:"#DBEAFE",text:"#1D4ED8"},"Waiting":{bg:"#FEF9C3",text:"#A16207"},"Blocked":{bg:"#FEE2E2",text:"#B91C1C"},"Complete":{bg:"#DCFCE7",text:"#15803D"}};
 const HEALTH_COLORS={"On Track":{bg:"#DCFCE7",text:"#15803D",icon:"🟢"},"At Risk":{bg:"#FEF9C3",text:"#A16207",icon:"🟡"},"Delayed":{bg:"#FEE2E2",text:"#B91C1C",icon:"🔴"},"On Hold":{bg:"#F1F5F9",text:"#475569",icon:"⏸"},"Complete":{bg:"#DCFCE7",text:"#15803D",icon:"✅"}};
-const ASANA_API="https://app.asana.com/api/1.0";
 const SCOPES='https://www.googleapis.com/auth/spreadsheets';
 const AUTOPUSH_DELAY=8000;
 const TASK_RANGE="'Daily Tasks'!A5:N500";
@@ -203,7 +202,7 @@ function normalizeTask(src){
   if(t.done||t.status==='Complete'){t.done=true;t.status='Complete';t.lane='done';t.completedAt=t.completedAt||todayStr;}
   else if(t.lane==='done'){t.lane=deriveLane({...t,lane:undefined});}
   if(t.lane!=='done'){t.done=false;t.completedAt=null;}
-  if(t.asanaGid===undefined)t.asanaGid=null;
+  delete t.asanaGid; // Asana removed
   return t;
 }
 function normalizeAll(arr){return assignOrders((arr||[]).map(normalizeTask));}
@@ -265,7 +264,7 @@ function nextDue(base,rep){
 function spawnRepeat(t){
   if(!t.repeat||t.repeat==='none'||t.spawnedNext)return null;
   const due=nextDue(t.dueDate,t.repeat);if(!due)return null;
-  return normalizeTask({id:uid(),category:t.category,description:t.description,job:t.job,priority:t.priority,dueDate:due,status:'Not Started',notes:t.notes,done:false,repeat:t.repeat,lane:laneForDue(due),asanaGid:null});
+  return normalizeTask({id:uid(),category:t.category,description:t.description,job:t.job,priority:t.priority,dueDate:due,status:'Not Started',notes:t.notes,done:false,repeat:t.repeat,lane:laneForDue(due)});
 }
 
 // ── Google OAuth ───────────────────────────────────────────────────────────────
@@ -320,7 +319,7 @@ function parseSheetDate(v){if(!v)return'';const m=String(v).match(/^(\d{1,2})\/(
 // Columns A–K are unchanged from v7. L = Board Column, M = Repeats (new in v8).
 function tasksToRows(t){return t.map((t,i)=>[i+1,t.category||'',t.description||'',t.job||'','You',t.priority||'',t.dueDate?fmtDate(t.dueDate):'',t.status||'',t.notes||'',t.done?'✅':'',String(t.id||''),laneLabel(t.lane),t.repeat&&t.repeat!=='none'?t.repeat:'',hasOrder(t)?Math.round(t.order*1000)/1000:'']);}
 function laneFromLabel(v){const s=String(v||'').trim().toLowerCase();const l=LANES.find(x=>x.label.toLowerCase()===s||x.id===s);return l?l.id:'';}
-function rowsToTasks(rows){return rows.filter(r=>r[2]&&String(r[2]).trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();const done=r[9]==='✅'||r[7]==='Complete';return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done,completedAt:done?parseSheetDate(r[6])||todayStr:null,asanaGid:null,lane:laneFromLabel(r[11]),repeat:String(r[12]||'').trim().toLowerCase(),order:sheetNum(r[13])};});}
+function rowsToTasks(rows){return rows.filter(r=>r[2]&&String(r[2]).trim()).map((r,i)=>{const rawId=r[10]&&String(r[10]).trim();const done=r[9]==='✅'||r[7]==='Complete';return{id:rawId||('n'+Date.now()+'_'+i),_noId:!rawId,category:r[1]||'Admin',description:r[2]||'',job:r[3]||'',priority:r[5]||'Medium',dueDate:parseSheetDate(r[6]),status:r[7]||'Not Started',notes:r[8]||'',done,completedAt:done?parseSheetDate(r[6])||todayStr:null,lane:laneFromLabel(r[11]),repeat:String(r[12]||'').trim().toLowerCase(),order:sheetNum(r[13])};});}
 function sheetNum(v){if(v===undefined||v===null||String(v).trim()==='')return undefined;const n=parseFloat(String(v).replace(/,/g,''));return isFinite(n)?n:undefined;}
 function projectsToRows(p){return p.map(p=>[p.name||'',p.pm||'',p.jobNum||'',p.startDate?fmtDate(p.startDate):'',p.targetEnd?fmtDate(p.targetEnd):'',(p.pctComplete||0)+'%',p.health||'On Track','','',p.blockers||'',p.lastCheckin?fmtDate(p.lastCheckin):'']);}
 function rowsToProjects(rows){return rows.filter(r=>r[0]&&r[0].trim()).map((r,i)=>({id:Date.now()+i,name:r[0]||'',pm:r[1]||'',jobNum:r[2]||'',startDate:parseSheetDate(r[3]),targetEnd:parseSheetDate(r[4]),pctComplete:parseInt((r[5]||'0').replace('%',''))||0,health:r[6]||'On Track',blockers:r[9]||'',lastCheckin:parseSheetDate(r[10])||todayStr}));}
@@ -390,13 +389,13 @@ function mergeForPush(appTasks,sheetTasks){
   sheetTasks.forEach(s=>{const id=String(s.id);if(!appIdx.has(id)&&!tomb.has(id))out.push(s);});
   return out;
 }
-// Pull: sheet wins on conflict, but app-only fields (Asana link, repeat bookkeeping) are kept
+// Pull: sheet wins on conflict, but app-only fields (repeat bookkeeping) are kept
 function mergeForPull(appTasks,sheetTasks){
   const tomb=tombstonedIds();const shIdx=indexById(sheetTasks);const appIdx=indexById(appTasks);const out=[];
   sheetTasks.forEach(s=>{
     const id=String(s.id);if(tomb.has(id))return;
     const a=appIdx.get(id);
-    out.push(a?{...a,...s,lane:s.lane||a.lane,repeat:s.repeat||a.repeat,order:hasOrder(s)?s.order:a.order,asanaGid:a.asanaGid||null}:s);
+    out.push(a?{...a,...s,lane:s.lane||a.lane,repeat:s.repeat||a.repeat,order:hasOrder(s)?s.order:a.order}:s);
   });
   appTasks.forEach(t=>{const id=String(t.id);if(!shIdx.has(id)&&!tomb.has(id))out.push(t);});
   return out;
@@ -434,56 +433,6 @@ async function pullFromSheets(appTasks){
   return{tasks:mergedTasks,projects:rowsToProjects(pR.values||[]),parking:rowsToParking(kR.values||[])};
 }
 
-// ── Asana API ──────────────────────────────────────────────────────────────────
-function getAsanaPAT(){return ls.get('tt_asana_pat')||'';}
-function getAsanaProject(){return ls.get('tt_asana_project')||'';}
-function isAsanaConfigured(){return getAsanaPAT().length>0&&getAsanaProject().length>0;}
-
-async function asanaReq(method,path,body){
-  const pat=getAsanaPAT();
-  if(!pat)throw new Error('Asana not configured');
-  const res=await fetch(`${ASANA_API}${path}`,{
-    method,
-    headers:{'Authorization':'Bearer '+pat,'Content-Type':'application/json','Accept':'application/json'},
-    body:body?JSON.stringify({data:body}):undefined,
-  });
-  if(!res.ok){const e=await res.json();throw new Error(e.errors?.[0]?.message||'Asana API error');}
-  return res.json();
-}
-function taskToAsana(task){
-  const notes=[task.notes,task.job?`Job/Customer: ${task.job}`:'',`Category: ${task.category}`,`Board: ${laneLabel(task.lane)}`].filter(Boolean).join('\n');
-  const obj={name:task.description,notes,completed:task.done||task.status==='Complete',projects:[getAsanaProject()]};
-  if(task.dueDate)obj.due_on=task.dueDate;
-  return obj;
-}
-async function pushToAsana(tasks){
-  const project=getAsanaProject();
-  if(!project)throw new Error('No Asana project configured');
-  const updatedTasks=[];
-  for(const task of tasks){
-    const asanaData=taskToAsana(task);
-    try{
-      if(task.asanaGid){
-        await asanaReq('PUT',`/tasks/${task.asanaGid}`,{name:asanaData.name,notes:asanaData.notes,completed:asanaData.completed,due_on:asanaData.due_on||null});
-        updatedTasks.push({...task});
-      }else{
-        const res=await asanaReq('POST','/tasks',asanaData);
-        updatedTasks.push({...task,asanaGid:res.data?.gid||null});
-      }
-    }catch(e){
-      if(task.asanaGid&&e.message.includes('Not Found')){
-        const res=await asanaReq('POST','/tasks',asanaData);
-        updatedTasks.push({...task,asanaGid:res.data?.gid||null});
-      }else updatedTasks.push({...task});
-    }
-  }
-  return updatedTasks;
-}
-async function testAsanaConnection(){
-  const res=await asanaReq('GET',`/projects/${getAsanaProject()}?opt_fields=name`);
-  return res.data?.name||'Connected';
-}
-
 // ── Cloud storage (Firebase) ───────────────────────────────────────────────────
 // Each card, project and parking item is its own document under users/{your uid}/…
 // Changes save instantly, show up live on your other devices, and queue up while offline.
@@ -512,7 +461,7 @@ async function commitOps(ops){
     finally{cloud.pending--;renderSoon();}
   }
 }
-function logEntry(t){return{id:String(t.id),description:t.description||'',category:t.category||'',job:t.job||'',priority:t.priority||'',notes:t.notes||'',completedAt:t.completedAt||todayStr,done:true,status:'Complete'};}
+function logEntry(t){return{id:String(t.id),description:t.description||'',category:t.category||'',job:t.job||'',priority:t.priority||'',notes:t.notes||'',completedAt:t.completedAt||todayStr,done:true,status:'Complete',sourceKey:t.sourceKey||''};}
 // Compare current state to what the cloud last had and write only the differences
 function cloudWrite(){
   if(!cloudOn())return;
@@ -643,7 +592,6 @@ let state={
   parking:loadJSON('tt_parking',SAMPLE_PARKING),
   modal:null,filterCat:'All',search:'',pmShowCompleted:{},doneShowAll:false,
   syncStatus:null,syncMsg:'',
-  asanaSyncStatus:null,asanaSyncMsg:'',
   showSettings:false,settingsTab:'cloud',
   toast:'',refocus:null,
 };
@@ -683,15 +631,6 @@ async function syncPull(){
     setTimeout(()=>setState({syncStatus:null,syncMsg:''}),3000);
   }catch(e){setState({syncStatus:'error',syncMsg:'Pull failed: '+e.message});}
 }
-async function asanaPush(){
-  if(!isAsanaConfigured()){setState({showSettings:true,settingsTab:'asana'});return;}
-  setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Pushing to Asana…'});
-  try{
-    const updatedTasks=await pushToAsana(state.tasks);
-    setState({tasks:updatedTasks,asanaSyncStatus:'success',asanaSyncMsg:`${updatedTasks.length} tasks synced to Asana ✓`});
-    setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),4000);
-  }catch(e){setState({asanaSyncStatus:'error',asanaSyncMsg:'Asana sync failed: '+e.message});}
-}
 
 // ── Render (keeps scroll position and focus between re-renders) ────────────────
 let renderPending=false;
@@ -725,14 +664,10 @@ function buildApp(){
 // ── Sync bar ───────────────────────────────────────────────────────────────────
 function buildSyncBar(){
   const sheetsOk=isSheetsConfigured()&&!!ls.get('tt_authed');
-  const asanaOk=isAsanaConfigured();
   const sColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.syncStatus]||'#374151';
   const sBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.syncStatus]||'transparent';
-  const aColor={syncing:'#A16207',success:'#15803D',error:'#B91C1C'}[state.asanaSyncStatus]||'#374151';
-  const aBg={syncing:'#FEF9C3',success:'#DCFCE7',error:'#FEE2E2'}[state.asanaSyncStatus]||'transparent';
   const spin=s=>s==='syncing'?`<span class="spin">⟳</span> `:'';
   const sheetsLabel=state.syncStatus?`<span style="font-size:12px;font-weight:600;color:${sColor};background:${sBg};padding:3px 9px;border-radius:99px;">${spin(state.syncStatus)}${esc(state.syncMsg)}</span>`:sheetsOk?`<span style="font-size:11px;color:#15803D;">✓ Sheets · auto-saves</span>`:`<span style="font-size:11px;color:#9CA3AF;">Sheets: not connected</span>`;
-  const asanaLabel=state.asanaSyncStatus?`<span style="font-size:12px;font-weight:600;color:${aColor};background:${aBg};padding:3px 9px;border-radius:99px;">${spin(state.asanaSyncStatus)}${esc(state.asanaSyncMsg)}</span>`:asanaOk?`<span style="font-size:11px;color:#F97316;">✓ Asana connected</span>`:`<span style="font-size:11px;color:#9CA3AF;">Asana: not connected</span>`;
   const cl=cloudStatus();
   const cloudLabel=`<span style="font-size:12px;font-weight:700;color:${cl.color};background:${cl.bg};padding:3px 9px;border-radius:99px;" title="${esc(cloud.error||'')}">${cl.label}</span>`;
   const cOn=!!cloud.user;
@@ -741,10 +676,9 @@ function buildSyncBar(){
   const signInBtn=cOn||!cloud.available?'':`<button onclick="cloudSignIn()" style="background:#16A34A;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;">☁ Sign in to sync</button>`;
   return`<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:8px 12px;margin-bottom:12px;">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <div style="display:flex;gap:10px;flex:1;min-width:120px;flex-wrap:wrap;align-items:center;">${cloudLabel}${(cOn&&!isSheetsConfigured()&&!state.syncStatus)?'':sheetsLabel}${asanaLabel}</div>
+      <div style="display:flex;gap:10px;flex:1;min-width:120px;flex-wrap:wrap;align-items:center;">${cloudLabel}${(cOn&&!isSheetsConfigured()&&!state.syncStatus)?'':sheetsLabel}</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;">
         ${signInBtn}${sheetsBtn}${pullBtn}
-        <button onclick="asanaPush()" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:12px;font-weight:700;"${state.asanaSyncStatus==='syncing'?' disabled':''}>↑ Asana</button>
         <button onclick="setState({showSettings:true})" aria-label="Settings" style="background:#fff;color:#374151;border:1.5px solid #D1D5DB;border-radius:8px;padding:6px 10px;font-size:13px;">⚙</button>
       </div>
     </div>
@@ -791,7 +725,7 @@ function buildCloudSettings(){
 
 // ── Settings page ──────────────────────────────────────────────────────────────
 function buildSettingsPage(){
-  const tabs=[{id:'cloud',label:'Cloud'},{id:'sheets',label:'Google Sheets'},{id:'asana',label:'Asana'}];
+  const tabs=[{id:'cloud',label:'Cloud'},{id:'sheets',label:'Google Sheets'}];
   return`
 <div style="background:#1F2937;padding:14px 16px;position:sticky;top:0;z-index:50;">
   <div style="max-width:720px;margin:0 auto;display:flex;align-items:center;gap:12px;">
@@ -803,7 +737,7 @@ function buildSettingsPage(){
   </div>
 </div>
 <div style="max-width:720px;margin:0 auto;padding:20px 16px 60px;">
-  ${state.settingsTab==='cloud'?buildCloudSettings():state.settingsTab==='sheets'?buildSheetsSettings():buildAsanaSettings()}
+  ${state.settingsTab==='cloud'?buildCloudSettings():buildSheetsSettings()}
 </div>${state.toast?`<div id="toast">${esc(state.toast)}</div>`:''}`;
 }
 function buildSheetsSettings(){
@@ -840,32 +774,6 @@ function buildSheetsSettings(){
   </div>
   ${configured?`<button onclick="clearSheetsConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Google credentials</button>`:''}`;
 }
-function buildAsanaSettings(){
-  const configured=isAsanaConfigured();
-  return`
-  <div style="background:${configured?'#FFF7ED':'#FEF9C3'};border:1px solid ${configured?'#FED7AA':'#FDE68A'};border-radius:12px;padding:14px 16px;margin-bottom:16px;">
-    <div style="font-size:14px;font-weight:700;color:${configured?'#C2410C':'#A16207'};">${configured?'✓ Asana connected':'⚠ Asana not configured'}</div>
-    <div style="font-size:12px;color:${configured?'#9A3412':'#92400E'};margin-top:3px;">${configured?'Tap "↑ Asana" on the main screen to push all tasks.':'Enter your Personal Access Token and Project GID below.'}</div>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:12px;">Asana Credentials</div>
-    <form onsubmit="saveAsanaSettings(event)">
-      <div style="margin-bottom:14px;">${lbl('Personal Access Token')}<input id="cfg-asana-pat" type="password" value="${esc(getAsanaPAT())}" placeholder="Paste your Asana PAT" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"><div style="font-size:11px;color:#9CA3AF;margin-top:4px;">Asana → My Settings → Apps → Personal access tokens</div></div>
-      <div style="margin-bottom:16px;">${lbl('Project GID')}<input id="cfg-asana-project" type="password" value="${esc(getAsanaProject())}" placeholder="Paste your Asana Project GID" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 11px;font-size:13px;outline:none;box-sizing:border-box;font-family:monospace;"><div style="font-size:11px;color:#9CA3AF;margin-top:4px;">From Asana project URL: app.asana.com/0/<strong>THIS_NUMBER</strong>/list</div></div>
-      <button type="submit" style="width:100%;background:#F97316;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;">Save & Test Asana Connection</button>
-    </form>
-  </div>
-  <div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:16px;margin-bottom:14px;">
-    <div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:8px;">How Asana sync works</div>
-    <div style="font-size:13px;color:#374151;line-height:1.75;">
-      <div style="margin-bottom:5px;"><strong>↑ Asana</strong> — Pushes all tasks to your Asana project. New tasks are created; existing ones are updated.</div>
-      <div style="margin-bottom:5px;"><strong>Smart tracking</strong> — Each task remembers its Asana ID, so later pushes update rather than duplicate.</div>
-      <div style="margin-bottom:5px;"><strong>What syncs:</strong> Task name, notes, job/customer, category, board column, due date, and completion status.</div>
-      <div style="font-size:12px;color:#9CA3AF;margin-top:6px;">Asana sync is one-way (app → Asana). Changes made directly in Asana won't come back to the app.</div>
-    </div>
-  </div>
-  ${configured?`<button onclick="clearAsanaConfig()" style="width:100%;background:none;border:1.5px solid #FEE2E2;color:#DC2626;border-radius:10px;padding:10px;font-size:13px;font-weight:600;">Remove Asana credentials</button>`:''}`;
-}
 
 // ── Settings actions ───────────────────────────────────────────────────────────
 window.saveSheetsSettings=function(e){
@@ -879,25 +787,14 @@ window.saveSheetsSettings=function(e){
   setTimeout(()=>setState({syncStatus:null,syncMsg:''}),2500);
   initTokenClient();
 };
-window.saveAsanaSettings=async function(e){
-  e.preventDefault();
-  const pat=document.getElementById('cfg-asana-pat').value.trim();
-  const project=document.getElementById('cfg-asana-project').value.trim();
-  if(!pat||!project){toast('Please fill in both fields.');return;}
-  ls.set('tt_asana_pat',pat);ls.set('tt_asana_project',project);
-  setState({asanaSyncStatus:'syncing',asanaSyncMsg:'Testing Asana connection…',showSettings:true,settingsTab:'asana'});
-  try{const name=await testAsanaConnection();setState({asanaSyncStatus:'success',asanaSyncMsg:`Connected to "${name}" ✓`});setTimeout(()=>setState({asanaSyncStatus:null,asanaSyncMsg:''}),3500);}
-  catch(ex){setState({asanaSyncStatus:'error',asanaSyncMsg:'Connection failed: '+ex.message});}
-};
 window.signIn=function(){initTokenClient();if(!tokenClient){toast('Please save your Client ID first.');return;}tokenClient.requestAccessToken({prompt:'consent'});};
 window.signOut=function(){if(accessToken&&window.google)google.accounts.oauth2.revoke(accessToken,()=>{});accessToken=null;tokenExpiry=0;ls.del('tt_authed');setState({showSettings:true,settingsTab:'sheets',syncStatus:null,syncMsg:''});};
 window.clearSheetsConfig=function(){if(!confirm('Remove Google credentials?'))return;window.signOut();ls.del('tt_clientid');ls.del('tt_sheetid');setState({showSettings:true,settingsTab:'sheets'});};
-window.clearAsanaConfig=function(){if(!confirm('Remove Asana credentials?'))return;ls.del('tt_asana_pat');ls.del('tt_asana_project');setState({showSettings:true,settingsTab:'asana'});};
 
 // ── Header ─────────────────────────────────────────────────────────────────────
 function buildHeader(counts,parkCount){
   const tabs=[{id:'tasks',label:'Board',badge:counts.today,color:'#2563EB'},{id:'parking',label:'Parking',badge:parkCount,color:'#F97316'},{id:'pm',label:'Projects',badge:0,color:'#7E22CE'}];
-  const addBtns={tasks:`<button onclick="openTask(null,'backlog')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Card</button>`,parking:`<button onclick="openModalType('park')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openProject(null)" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
+  const addBtns={tasks:`<div style="display:flex;align-items:center;"><button onclick="openImport()" title="Import from a list, an email, or a CSV / Excel file" style="background:transparent;color:#E5E7EB;border:1.5px solid #4B5563;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;margin-right:6px;">⤓ Import</button><button onclick="openTask(null,'backlog')" style="background:#2563EB;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Card</button></div>`,parking:`<button onclick="openModalType('park')" style="background:#F97316;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">🅿 Park It</button>`,pm:`<button onclick="openProject(null)" style="background:#7E22CE;color:#fff;border:none;border-radius:8px;padding:8px 13px;font-size:13px;font-weight:700;">+ Project</button>`};
   const mw=state.tab==='tasks'?'none':'720px';
   return`<div style="background:#1F2937;position:sticky;top:0;z-index:50;"><div style="max-width:${mw};margin:0 auto;padding:12px 14px 0;display:flex;justify-content:space-between;align-items:center;"><div><div style="font-size:17px;font-weight:800;color:#fff;letter-spacing:-0.3px;">Task Tracker</div><div style="font-size:11px;color:#9CA3AF;">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'})}</div></div>${addBtns[state.tab]||''}</div><div style="max-width:${state.tab==='tasks'?'720px':mw};margin:0 ${state.tab==='tasks'?'0':'auto'};padding:8px 14px 0;display:flex;gap:2px;">${tabs.map(t=>`<button onclick="setTab('${t.id}')" style="flex:1;padding:9px 4px;background:${state.tab===t.id?(t.id==='tasks'?'#F1F5F9':'#fff'):'transparent'};color:${state.tab===t.id?t.color:'#9CA3AF'};border:none;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px;">${t.label}${t.badge>0?`<span style="background:${t.color};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 6px;">${t.badge}</span>`:''}</button>`).join('')}</div></div>`;
 }
@@ -959,12 +856,11 @@ function cardHTML(t){
   const due=t.dueDate&&!t.done?`<span class="pill" style="background:${over?'#FEE2E2':'#F1F5F9'};color:${over?'#B91C1C':'#475569'};">${over?'Overdue · ':''}${esc(fmtShort(t.dueDate))}</span>`:'';
   const blocked=t.status==='Blocked'?`<span class="pill" style="background:#FEE2E2;color:#B91C1C;">Blocked</span>`:t.status==='In Progress'&&t.lane!=='today'?`<span class="pill" style="background:#DBEAFE;color:#1D4ED8;">In progress</span>`:'';
   const rep=t.repeat&&t.repeat!=='none'?`<span class="pill" title="${esc((REPEATS.find(r=>r.id===t.repeat)||{}).label)}" style="background:#EEF2FF;color:#4338CA;">↻ ${esc(t.repeat)}</span>`:'';
-  const asana=t.asanaGid?`<span title="Synced to Asana" style="font-size:10px;color:#F97316;">●</span>`:'';
   const sub=[t.job?`<span style="font-weight:600;color:#475569;">${esc(t.job)}</span>`:'',(t.lane==='waiting'||t.lane==='today')&&t.notes?esc(t.notes.length>90?t.notes.slice(0,90)+'…':t.notes):''].filter(Boolean).join(' · ');
   const rows=state.layout==='rows';const back=rows?'↑':'‹',fwd=rows?'↓':'›';
   return`<div class="card${over?' overdue':''}${t.done?' done':''}" style="--cat:${cc.dot};" data-id="${id}" onclick="openTask('${id}')">
     <div class="card-top"><button class="chk${t.done?' on':''}" aria-label="${t.done?'Mark not done':'Mark done'}" onclick="event.stopPropagation();toggleDone('${id}')">${t.done?'✓':''}</button><div class="title">${esc(t.description)}</div></div>
-    <div class="meta"><span class="pill" style="background:${cc.bg};color:${cc.text};">${esc(t.category)}</span>${pri}${due}${blocked}${rep}${asana}</div>
+    <div class="meta"><span class="pill" style="background:${cc.bg};color:${cc.text};">${esc(t.category)}</span>${pri}${due}${blocked}${rep}</div>
     ${sub?`<div class="sub">${sub}</div>`:''}
     <div class="mv">${prev?`<button title="Move to ${prev.label}" onclick="event.stopPropagation();moveTask('${id}','${prev.id}')">${back}</button>`:''}${next?`<button title="Move to ${next.label}" onclick="event.stopPropagation();moveTask('${id}','${next.id}')">${fwd}</button>`:''}</div>
   </div>`;
@@ -1088,11 +984,218 @@ window.toggleLane=lane=>{const c={...state.collapsed,[lane]:!state.collapsed[lan
 window.toggleDone=id=>{const t=findTask(id);if(!t)return;moveTask(id,t.done?'today':'done');};
 window.quickAdd=(e,lane)=>{
   e.preventDefault();const input=e.target.q;const v=input.value.trim();if(!v)return;
-  const category=state.filterCat!=='All'?state.filterCat:state.focus==='marketing'?'Marketing':'Admin';
-  const task=normalizeTask({id:uid(),category,description:v,job:'',priority:'Medium',dueDate:lane==='today'?todayStr:'',status:lane==='waiting'?'Waiting':'Not Started',notes:'',done:false,lane,repeat:'none',asanaGid:null,order:topOrder(lane)});
+  // Quick tags work here too: #today !high @materials due:fri [Garcia] // notes
+  const p=parseQuickLine(v,{lane});if(!p)return;
+  const category=p.category||(state.filterCat!=='All'?state.filterCat:state.focus==='marketing'?'Marketing':'Admin');
+  const L=p.lane;
+  const task=normalizeTask({id:uid(),category,description:p.title,job:p.job,priority:p.priority||'Medium',dueDate:p.dueDate||(L==='today'&&lane==='today'?todayStr:''),status:L==='waiting'?'Waiting':'Not Started',notes:p.notes,done:false,lane:L,repeat:p.repeat,order:topOrder(L)});
   state.refocus='qa-'+lane;
   setState({tasks:[task,...state.tasks]});
+  if(L!==lane)toast(`Added to ${laneLabel(L)}`);
 };
+
+// ── Import (paste text / email, or a CSV / Excel file) ─────────────────────────
+const CAT_ALIASES={service:'Service Calendar',calendar:'Service Calendar',svc:'Service Calendar',sub:'Subcontractor',subs:'Subcontractor',subcontractor:'Subcontractor',large:'Large Project',project:'Large Project',lp:'Large Project',materials:'Materials/Orders',material:'Materials/Orders',mat:'Materials/Orders',order:'Materials/Orders',orders:'Materials/Orders',followup:'Customer Follow-up',fu:'Customer Follow-up',customer:'Customer Follow-up',cust:'Customer Follow-up',pm:'PM Check-in',checkin:'PM Check-in',admin:'Admin',marketing:'Marketing',mkt:'Marketing',mktg:'Marketing'};
+const LANE_TAGS={backlog:'backlog',later:'backlog',someday:'backlog',week:'week',thisweek:'week',wk:'week',today:'today',now:'today',waiting:'waiting',wait:'waiting'};
+const DOW=['sun','mon','tue','wed','thu','fri','sat'];
+function parseDateLoose(v){
+  if(v==null)return'';let s=String(v).trim().toLowerCase();if(!s)return'';
+  if(['today','tod','now'].includes(s))return todayStr;
+  if(['tomorrow','tmrw','tmr','tom'].includes(s))return addDays(todayStr,1);
+  let m=s.match(/^\+(\d{1,3})d?$/);if(m)return addDays(todayStr,+m[1]);
+  const di=DOW.indexOf(s.slice(0,3));if(di>=0&&/^[a-z]+$/.test(s)){const cur=parseLocal(todayStr).getDay();return addDays(todayStr,(di-cur+7)%7);}
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})(?:[\/.-](\d{2,4}))?(?!\d)/);
+  if(m){let y=m[3]?+m[3]:parseLocal(todayStr).getFullYear();if(y<100)y+=2000;let d=`${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;if(!m[3]&&d<addDays(todayStr,-60))d=`${y+1}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;return +m[1]>=1&&+m[1]<=12&&+m[2]>=1&&+m[2]<=31?d:'';}
+  if(/^\d{5}(\.\d+)?$/.test(s)){const dt=new Date(Date.UTC(1899,11,30)+parseFloat(s)*86400000);return`${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,'0')}-${String(dt.getUTCDate()).padStart(2,'0')}`;} // Excel serial date
+  const t=Date.parse(String(v));return isNaN(t)?'':localDateStr(new Date(t));
+}
+// One line → card fields. Tags: #today #week #backlog #waiting · !high !low (or !!) · @materials @followup @pm … · due:fri due:9/30 due:+3 · *weekly · [Customer / Job #] · // notes
+function parseQuickLine(raw,def){
+  let line=String(raw||'').replace(/^\s*(?:[-*•▪◦–]|\d+[.)]|\[[ xX]?\])\s+/,'').trim();
+  if(!line)return null;
+  const o={lane:null,priority:null,category:null,dueDate:'',repeat:'none',job:'',notes:''};
+  const ni=line.indexOf(' // ');if(ni>=0){o.notes=line.slice(ni+4).trim();line=line.slice(0,ni);}
+  line=line.replace(/\[([^\]]+)\]/g,(m,j)=>{o.job=j.trim();return' ';});
+  line=line.replace(/(^|\s)due:(\S+)/gi,(m,sp,v)=>{o.dueDate=parseDateLoose(v);return' ';});
+  line=line.replace(/(^|\s)#([a-z]+)(?=\s|$)/gi,(m,sp,v)=>{const l=LANE_TAGS[v.toLowerCase()];if(l){o.lane=l;return' ';}return m;});
+  line=line.replace(/(^|\s)!!(?=\s|$)/g,()=>{o.priority='High';return' ';});
+  line=line.replace(/(^|\s)!(high|hi|h|low|lo|l|med|medium|m)(?=\s|$)/gi,(m,sp,v)=>{v=v.toLowerCase();o.priority=v[0]==='h'?'High':v[0]==='l'?'Low':'Medium';return' ';});
+  line=line.replace(/(^|\s)@([a-z][a-z-]*)(?=\s|$)/gi,(m,sp,v)=>{const c=CAT_ALIASES[v.toLowerCase().replace(/-/g,'')];if(c){o.category=c;return' ';}return m;});
+  line=line.replace(/(^|\s)\*(daily|weekdays|weekly|monthly)(?=\s|$)/gi,(m,sp,v)=>{o.repeat=v.toLowerCase();return' ';});
+  o.title=line.replace(/\s+/g,' ').trim();
+  if(!o.title)return null;
+  o.lane=o.lane||(def.lane==='auto'||!def.lane?laneForDue(o.dueDate):def.lane);
+  return o;
+}
+// A pasted email → one card: subject = title, sender = job/customer, body = notes
+function parseEmail(text,def){
+  const body=[];let subject='',from='';
+  String(text).replace(/\r/g,'').split('\n').forEach(l=>{
+    const m=l.match(/^\s*(From|Sent|To|Cc|Bcc|Subject|Date|Reply-To)\s*:\s*(.*)$/i);
+    if(m){const k=m[1].toLowerCase();if(k==='subject'&&!subject)subject=m[2].trim();if(k==='from'&&!from)from=m[2].trim();return;}
+    body.push(l);
+  });
+  let bodyText=body.join('\n').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+  subject=subject.replace(/^(\s*(re|fw|fwd)\s*:\s*)+/i,'');
+  if(!subject){const first=bodyText.split('\n').find(x=>x.trim())||'';subject=first;bodyText=bodyText.slice(bodyText.indexOf(first)+first.length).trim();}
+  const p=parseQuickLine(subject.slice(0,200),def);if(!p)return null;
+  const fromName=from.replace(/<([^>]*)>/,'').replace(/["']/g,'').trim()||((from.match(/<([^>]*)>/)||[])[1]||'');
+  p.job=p.job||fromName;
+  p.notes=[p.notes,bodyText.slice(0,2000)+(bodyText.length>2000?'…':'')].filter(Boolean).join('\n\n');
+  return p;
+}
+function parseCSV(text){
+  text=String(text).replace(/^﻿/,'');
+  const first=text.split(/\r?\n/)[0]||'';
+  const delim=[',','\t',';'].sort((a,b)=>first.split(b).length-first.split(a).length)[0];
+  const rows=[];let row=[],cell='',q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}else cell+=ch;}
+    else if(ch==='"'&&cell==='')q=true;
+    else if(ch===delim){row.push(cell);cell='';}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cell);rows.push(row);row=[];cell='';}
+    else cell+=ch;
+  }
+  if(cell!==''||row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+const normH=h=>String(h||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function guessMap(headers){
+  const H=headers.map(normH);
+  const find=(cands,avoid=[])=>{for(const c of cands){const i=H.indexOf(c);if(i>=0&&!avoid.includes(i))return i;}for(const c of cands){const i=H.findIndex((h,k)=>h.includes(c)&&!avoid.includes(k));if(i>=0)return i;}return-1;};
+  const title=find(['jobdescription','description','task','title','subject','service','servicetype','jobtype','summary','lineitems','name']);
+  const job=find(['customername','customer','client','clientname','customerfullname','name'],[title]);
+  const key=find(['jobnumber','job','jobno','jobid','invoicenumber','invoice','estimatenumber','estimate','workordernumber','id'],[title,job]);
+  const due=find(['scheduleddate','scheduledstart','scheduledfor','scheduled','startdate','appointment','duedate','due','jobdate','date']);
+  const notes=find(['address','serviceaddress','jobaddress','location'],[title,job,key,due]);
+  const notes2=find(['notes','comments','privatenotes','jobnotes'],[title,job,key,due,notes]);
+  const status=find(['status','jobstatus','workstatus']);
+  return{title:title>=0?title:0,title2:-1,job,key,due,notes,notes2,skipCol:status,skipText:status>=0?'complete, canceled, cancelled':''};
+}
+function fileToParsed(file,map,def){
+  const out=[];let filtered=0;
+  file.rows.forEach(r=>{
+    const g=i=>i>=0?String(r[i]??'').trim():'';
+    if(map.skipCol>=0&&map.skipText){const v=g(map.skipCol).toLowerCase();if(v&&map.skipText.toLowerCase().split(',').map(x=>x.trim()).filter(Boolean).some(t=>v.includes(t))){filtered++;return;}}
+    const title=[g(map.title),g(map.title2)].filter(Boolean).join(' – ');if(!title)return;
+    const dueDate=parseDateLoose(g(map.due));
+    const keyv=g(map.key).replace(/^#/,'');
+    const job=[g(map.job),keyv?'#'+keyv:''].filter(Boolean).join(' · ');
+    const notes=[map.notes,map.notes2].filter(i=>i>=0&&g(i)).map(i=>`${file.headers[i]}: ${g(i)}`).join('\n');
+    out.push({title:title.slice(0,200),job,notes,dueDate,lane:def.lane==='auto'?laneForDue(dueDate):def.lane,priority:null,category:null,repeat:'none',sourceKey:keyv?`${normH(file.headers[map.key])}:${keyv}`:''});
+  });
+  return{parsed:out,filtered};
+}
+function impIsEmail(){const im=state.imp;if(im.email==='on')return true;if(im.email==='off')return false;return/^\s*(subject|from)\s*:/im.test(im.text||'');}
+function knownKeysSync(){const s=new Set(state.tasks.map(t=>t.sourceKey).filter(Boolean));try{JSON.parse(ls.get('tt_imported_keys')||'[]').forEach(k=>s.add(k));}catch{}return s;}
+const dupKey=t=>`${t.description}|${t.job||''}`.toLowerCase().replace(/\s+/g,' ').trim();
+function impBuild(known){
+  const im=state.imp,def={lane:im.lane};let parsed=[],filtered=0;
+  if(im.tab==='paste'){
+    if(impIsEmail()){const p=parseEmail(im.text||'',def);if(p)parsed=[p];}
+    else parsed=String(im.text||'').split(/\r?\n/).map(l=>parseQuickLine(l,def)).filter(Boolean);
+  }else if(im.file){const r=fileToParsed(im.file,im.map,def);parsed=r.parsed;filtered=r.filtered;}
+  const open=new Set(state.tasks.filter(t=>!t.done).map(dupKey)),seen=new Set(),cards=[];let dups=0;
+  parsed.forEach(p=>{
+    const c=normalizeTask({id:uid(),category:p.category||im.category,description:p.title,job:p.job,priority:p.priority||'Medium',dueDate:p.dueDate||'',status:p.lane==='waiting'?'Waiting':'Not Started',notes:p.notes,done:false,lane:p.lane,repeat:p.repeat||'none',sourceKey:p.sourceKey||undefined});
+    const dk=dupKey(c);
+    if((c.sourceKey&&known.has(c.sourceKey))||open.has(dk)||seen.has(dk)){dups++;return;}
+    seen.add(dk);cards.push(c);
+  });
+  return{cards,dups,filtered};
+}
+function impPreviewHTML(){
+  const{cards,dups,filtered}=impBuild(knownKeysSync());
+  const summary=[`<strong>${cards.length}</strong> new card${cards.length!==1?'s':''}`,dups?`${dups} already on the board (skipped)`:'',filtered?`${filtered} skipped by your filter`:''].filter(Boolean).join(' · ');
+  const list=cards.slice(0,40).map(c=>{const cc=CAT_COLORS[c.category]||CAT_COLORS.Admin;return`<div style="padding:7px 9px;border-bottom:1px solid #F1F5F9;"><div style="font-size:13px;font-weight:600;word-break:break-word;">${esc(c.description)}</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:3px;align-items:center;"><span class="pill" style="background:#EEF2FF;color:#4338CA;">${laneLabel(c.lane)}</span><span class="pill" style="background:${cc.bg};color:${cc.text};">${esc(c.category)}</span>${c.priority!=='Medium'?`<span class="pill" style="background:${PRI_COLORS[c.priority].bg};color:${PRI_COLORS[c.priority].text};">${c.priority}</span>`:''}${c.dueDate?`<span class="pill" style="background:#F1F5F9;color:#475569;">${esc(fmtShort(c.dueDate))}</span>`:''}${c.repeat!=='none'?`<span class="pill" style="background:#EEF2FF;color:#4338CA;">↻ ${c.repeat}</span>`:''}${c.job?`<span style="font-size:11.5px;color:#64748B;">${esc(c.job)}</span>`:''}</div>${c.notes?`<div style="font-size:11.5px;color:#94A3B8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.notes.split('\n')[0])}</div>`:''}</div>`;}).join('');
+  return{html:`<div style="font-size:12px;color:#475569;margin:10px 0 6px;">${summary||'Nothing to import yet'}</div>${cards.length?`<div style="border:1px solid #E2E8F0;border-radius:9px;max-height:260px;overflow-y:auto;">${list}${cards.length>40?`<div style="padding:7px 9px;font-size:12px;color:#94A3B8;">+ ${cards.length-40} more</div>`:''}</div>`:''}`,n:cards.length};
+}
+function impRefresh(){const box=document.getElementById('imp-preview');if(!box)return;const md=document.getElementById('imp-mode');if(md)md.textContent=impIsEmail()?'Reading as an email: subject → title, sender → customer, body → notes':'Each line becomes a card';const r=impPreviewHTML();box.innerHTML=r.html;const go=document.getElementById('imp-go');if(go){go.textContent=r.n?`Add ${r.n} card${r.n!==1?'s':''}`:'Add cards';go.disabled=!r.n;go.style.opacity=r.n?1:.5;}}
+window.openImport=(text,lane)=>{
+  const prev=state.imp;
+  state.imp={tab:'paste',text:'',email:'auto',lane:ls.get('tt_imp_lane')||'auto',category:ls.get('tt_imp_cat')||'Admin',file:null,map:null,...(prev||{})};
+  if(text!=null){state.imp.tab='paste';state.imp.text=text;}
+  if(lane)state.imp.lane=lane;
+  setState({modal:{type:'import'}});
+  setTimeout(impRefresh,0);
+};
+window.impSet=(k,v,light)=>{state.imp[k]=v;if(k==='lane')ls.set('tt_imp_lane',v);if(k==='category')ls.set('tt_imp_cat',v);if(light)impRefresh();else{render();impRefresh();}};
+window.impMap=(k,v)=>{state.imp.map={...state.imp.map,[k]:k==='skipText'?v:+v};if(k==='skipText')impRefresh();else{render();impRefresh();}};
+async function loadXLSX(){
+  if(window.XLSX)return;
+  await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=res;s.onerror=()=>rej(new Error('Could not load the Excel reader — check your connection, or save the file as CSV.'));document.head.appendChild(s);});
+}
+window.impFile=async input=>{
+  const f=input.files&&input.files[0];if(!f)return;
+  try{
+    let rows;
+    if(/\.(xlsx|xlsm|xls)$/i.test(f.name)){await loadXLSX();const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''});}
+    else rows=parseCSV(await f.text());
+    rows=rows.map(r=>(r||[]).map(c=>String(c??'').trim()));
+    const hi=rows.findIndex(r=>r.filter(Boolean).length>=2);
+    if(hi<0)throw new Error('Couldn’t find a header row in that file.');
+    const headers=rows[hi].map((h,i)=>h||`Column ${i+1}`);
+    const data=rows.slice(hi+1).filter(r=>r.some(Boolean));
+    const sig=headers.map(normH).join('|');
+    const saved=loadJSON('tt_import_maps',{})[sig];
+    Object.assign(state.imp,{file:{name:f.name,headers,rows:data,sig},map:saved||guessMap(headers),mapSaved:!!saved});
+    render();impRefresh();
+  }catch(e){toast(e.message||'Could not read that file');}
+};
+window.impCommit=async()=>{
+  const im=state.imp;
+  const known=knownKeysSync();
+  if(cloudOn())(await cloudCompletedLog()).forEach(e=>e.sourceKey&&known.add(e.sourceKey));
+  const{cards,dups}=impBuild(known);
+  if(!cards.length){toast(dups?`Nothing new — ${dups} already on the board`:'Nothing to import');return;}
+  const byLane={};cards.forEach(c=>(byLane[c.lane]=byLane[c.lane]||[]).push(c));
+  Object.entries(byLane).forEach(([lane,arr])=>{const base=topOrder(lane);arr.forEach((c,i)=>c.order=base-(arr.length-i)*10);}); // keep list order, at the top of each row
+  const keys=cards.map(c=>c.sourceKey).filter(Boolean);
+  if(keys.length){const k=new Set(loadJSON('tt_imported_keys',[]));keys.forEach(x=>k.add(x));ls.set('tt_imported_keys',JSON.stringify([...k].slice(-5000)));}
+  if(im.tab==='file'&&im.file){const maps=loadJSON('tt_import_maps',{});maps[im.file.sig]=im.map;ls.set('tt_import_maps',JSON.stringify(maps));}
+  state.imp=null;
+  setState({tasks:[...cards,...state.tasks],modal:null});
+  toast(`Added ${cards.length} card${cards.length!==1?'s':''}${dups?` · ${dups} duplicate${dups!==1?'s':''} skipped`:''}`);
+};
+function buildImportModal(){
+  const im=state.imp;
+  const tabBtn=(id,l)=>`<button type="button" class="${im.tab===id?'on':''}" onclick="impSet('tab','${id}')">${l}</button>`;
+  const laneOpts=[{id:'auto',label:'Auto (by due date)'},...LANES.filter(l=>l.id!=='done')];
+  const common=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;"><div>${lbl('Put cards in')}<select onchange="impSet('lane',this.value)" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">${laneOpts.map(o=>`<option value="${o.id}"${o.id===im.lane?' selected':''}>${esc(o.label)}</option>`).join('')}</select></div><div>${lbl('Category')}<select onchange="impSet('category',this.value)" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:8px 10px;font-size:13px;background:#fff;">${CATEGORIES.map(c=>`<option${c===im.category?' selected':''}>${esc(c)}</option>`).join('')}</select></div></div>`;
+  let body='';
+  if(im.tab==='paste'){
+    const emailSeg=`<div class="seg">${[['auto','Auto'],['off','Each line = a card'],['on','One email = one card']].map(([id,l])=>`<button type="button" class="${im.email===id?'on':''}" onclick="impSet('email','${id}')">${l}</button>`).join('')}</div>`;
+    body=`<textarea id="imp-text" rows="8" oninput="impSet('text',this.value,true)" placeholder="Paste a list (one task per line) or a whole email…&#10;&#10;Call Garcia about gutter quote #today !high @followup&#10;Order drip edge for Brennan [Brennan / 3847] due:fri @materials&#10;Weekly PM check-ins *weekly @pm due:mon" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:9px 10px;font-size:13px;font-family:inherit;outline:none;resize:vertical;">${esc(im.text||'')}</textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 10px;">${emailSeg}<span id="imp-mode" style="font-size:11.5px;color:#64748B;">${impIsEmail()?'Reading as an email: subject → title, sender → customer, body → notes':'Each line becomes a card'}</span></div>
+    <details style="font-size:12px;color:#475569;margin-bottom:10px;"><summary style="cursor:pointer;font-weight:700;">Quick tags (optional, also work in “+ Add a card”)</summary><div style="line-height:1.8;margin-top:6px;">
+      <code>#today</code> <code>#week</code> <code>#backlog</code> <code>#waiting</code> — which row<br>
+      <code>!high</code> or <code>!!</code> · <code>!low</code> — priority<br>
+      <code>@service</code> <code>@sub</code> <code>@large</code> <code>@materials</code> <code>@followup</code> <code>@pm</code> <code>@admin</code> <code>@marketing</code> — category<br>
+      <code>due:today</code> <code>due:fri</code> <code>due:9/30</code> <code>due:+3</code> — due date<br>
+      <code>*daily</code> <code>*weekdays</code> <code>*weekly</code> <code>*monthly</code> — repeats<br>
+      <code>[Garcia / 1190]</code> — job / customer · <code>// text</code> — notes
+    </div></details>`;
+  }else{
+    const f=im.file,m=im.map;
+    const colSel=(k,label,optional=true)=>`<div>${lbl(label)}<select onchange="impMap('${k}',this.value)" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 8px;font-size:12.5px;background:#fff;">${optional?`<option value="-1">— none —</option>`:''}${f.headers.map((h,i)=>`<option value="${i}"${m[k]===i?' selected':''}>${esc(h)}</option>`).join('')}</select></div>`;
+    body=`<div style="border:1.5px dashed #CBD5E1;border-radius:10px;padding:12px;margin-bottom:10px;background:#F8FAFC;"><input type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm" onchange="impFile(this)" style="font-size:13px;max-width:100%;"><div style="font-size:11.5px;color:#64748B;margin-top:6px;">${f?`<strong>${esc(f.name)}</strong> · ${f.rows.length} row${f.rows.length!==1?'s':''}${im.mapSaved?' · using your saved column matches':''}`:'Housecall Pro: export your jobs or estimates list (CSV or Excel) and choose it here.'}</div></div>
+    ${f?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-bottom:10px;">${colSel('title','Card title',false)}${colSel('title2','+ add to title')}${colSel('job','Job / Customer')}${colSel('key','Job # (prevents duplicates)')}${colSel('due','Due / scheduled date')}${colSel('notes','Notes')}${colSel('notes2','More notes')}${colSel('skipCol','Skip rows where…')}</div>
+    ${m.skipCol>=0?`<div style="margin-bottom:6px;">${lbl('…contains any of (comma-separated)')}<input value="${esc(m.skipText||'')}" oninput="impMap('skipText',this.value)" style="width:100%;border:1.5px solid #D1D5DB;border-radius:8px;padding:7px 9px;font-size:12.5px;"></div>`:''}`:''}`;
+  }
+  return modal(`<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap;"><h3 style="font-size:15px;font-weight:700;">⤓ Import cards</h3><div class="seg">${tabBtn('paste','Paste text / email')}${tabBtn('file','CSV / Excel file')}</div></div>
+    ${body}${common}
+    <div id="imp-preview"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;"><button type="button" onclick="closeModal()" style="padding:9px 16px;border-radius:8px;border:1.5px solid #D1D5DB;background:#fff;font-size:13px;font-weight:600;color:#374151;">Cancel</button><button id="imp-go" type="button" onclick="impCommit()" style="padding:9px 18px;border-radius:8px;border:none;background:#2563EB;color:#fff;font-size:13px;font-weight:700;">Add cards</button></div>`);
+}
+// Pasting several lines into a “+ Add a card” box opens Import with that text
+document.addEventListener('paste',e=>{
+  const inp=e.target.closest&&e.target.closest('.qa input');if(!inp)return;
+  const text=(e.clipboardData||window.clipboardData)?.getData('text')||'';
+  if(!/\n\s*\S/.test(text.trim()))return;
+  e.preventDefault();openImport(text,inp.id.replace('qa-',''));
+});
 window.pullDueIntoToday=()=>{let n=0;const tasks=state.tasks.map(t=>{if(!t.done&&(t.lane==='backlog'||t.lane==='week')&&t.dueDate&&t.dueDate<=todayStr){n++;return{...applyLane(t,'today'),order:topOrder('today')-n};}return t;});setState({tasks});toast(`Moved ${n} card${n!==1?'s':''} to Today`);};
 window.deleteTask=id=>{if(confirm('Delete this card?')){addTombstone(id);setState({tasks:state.tasks.filter(t=>String(t.id)!==String(id)),modal:null});}};
 window.archiveCompleted=async()=>{
@@ -1152,6 +1255,7 @@ function buildModal(){
   const m=state.modal;
   if(m.type==='task')return buildTaskModal(m.id?findTask(m.id):null,m.lane);
   if(m.type==='park')return buildParkModal();
+  if(m.type==='import')return buildImportModal();
   if(m.type==='project')return buildPMModal(m.id?state.projects.find(p=>String(p.id)===String(m.id)):null);
   return'';
 }
@@ -1185,7 +1289,7 @@ window.deleteParking=id=>setState({parking:state.parking.filter(k=>String(k.id)!
 window.parkToCard=id=>{
   const k=state.parking.find(x=>String(x.id)===String(id));if(!k)return;
   const notes=[k.time?`Parked ${k.time}`:'',k.wasWorkingOn?`Was working on: ${k.wasWorkingOn}`:'',k.interruption?`Interrupted by: ${k.interruption}`:''].filter(Boolean).join(' · ');
-  const task=normalizeTask({id:uid(),category:'Admin',description:k.nextStep||k.wasWorkingOn,job:'',priority:k.priority||'Medium',dueDate:todayStr,status:'Not Started',notes,done:false,lane:'today',repeat:'none',asanaGid:null,order:topOrder('today')});
+  const task=normalizeTask({id:uid(),category:'Admin',description:k.nextStep||k.wasWorkingOn,job:'',priority:k.priority||'Medium',dueDate:todayStr,status:'Not Started',notes,done:false,lane:'today',repeat:'none',order:topOrder('today')});
   setState({tasks:[task,...state.tasks],parking:state.parking.map(x=>String(x.id)===String(id)?{...x,cleared:true}:x)});
   toast('Added to Today on the board');
 };
@@ -1211,7 +1315,7 @@ window.submitTaskForm=(e,id)=>{
     else if(lane==='waiting'){if(!isWait(status))status='Waiting';}
     else if(isWait(status)||status==='Complete')status='Not Started';
   }
-  let task={...(prev||{}),id:id||uid(),category:fd.get('category'),description,job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate')||'',status,notes:fd.get('notes'),lane,repeat:fd.get('repeat')||'none',done:lane==='done',completedAt:lane==='done'?((prev&&prev.completedAt)||todayStr):null,asanaGid:prev?prev.asanaGid||null:null,sample:undefined};
+  let task={...(prev||{}),id:id||uid(),category:fd.get('category'),description,job:fd.get('job'),priority:fd.get('priority'),dueDate:fd.get('dueDate')||'',status,notes:fd.get('notes'),lane,repeat:fd.get('repeat')||'none',done:lane==='done',completedAt:lane==='done'?((prev&&prev.completedAt)||todayStr):null,sample:undefined};
   if(lane==='waiting'&&status!=='Waiting'&&status!=='Blocked')task.status='Waiting';
   task=normalizeTask(task);
   if(!prev||prev.lane!==task.lane)task.order=topOrder(task.lane,task.id); // new or moved → top of its lane
@@ -1226,17 +1330,17 @@ window.submitParkForm=e=>{e.preventDefault();const fd=new FormData(e.target);set
 window.submitPMForm=(e,id)=>{e.preventDefault();const fd=new FormData(e.target);const proj={id:id||Date.now(),name:fd.get('name'),pm:fd.get('pm'),jobNum:fd.get('jobNum'),startDate:fd.get('startDate'),targetEnd:fd.get('targetEnd'),pctComplete:parseInt(fd.get('pctComplete')||'0'),health:fd.get('health'),blockers:fd.get('blockers'),lastCheckin:todayStr};if(!String(proj.name||'').trim())return;setState({projects:id?state.projects.map(p=>String(p.id)===String(id)?proj:p):[proj,...state.projects],modal:null});};
 window.syncPush=syncPush;
 window.syncPull=syncPull;
-window.asanaPush=asanaPush;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&state.modal)setState({modal:null});});
 
 // ── Boot ───────────────────────────────────────────────────────────────────────
 window.addEventListener('load',()=>{if(isSheetsConfigured())initTokenClient();});
+ls.del('tt_asana_pat');ls.del('tt_asana_project'); // Asana removed — clear the stored token
 persist();
 render();
 initCloud();
 
 // ── Service Worker (network-first so updates show up right away) ───────────────
-if('serviceWorker' in navigator){const sw=`const C='tt-v10';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>clients.claim())));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;}).catch(()=>caches.match(e.request)));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
+if('serviceWorker' in navigator){const sw=`const C='tt-v11';self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>clients.claim())));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).then(res=>{const c=res.clone();caches.open(C).then(ca=>ca.put(e.request,c));return res;}).catch(()=>caches.match(e.request)));});`;const blob=new Blob([sw],{type:'application/javascript'});navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});}
 </script>
 <script>
 const manifest={name:"Task Tracker",short_name:"Tasks",start_url:"./",display:"standalone",background_color:"#1F2937",theme_color:"#1F2937",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231F2937'/%3E%3Crect x='32' y='44' width='36' height='104' rx='8' fill='%234B5563'/%3E%3Crect x='78' y='44' width='36' height='76' rx='8' fill='%232563EB'/%3E%3Crect x='124' y='44' width='36' height='56' rx='8' fill='%234B5563'/%3E%3C/svg%3E",sizes:"192x192",type:"image/svg+xml"}]};
